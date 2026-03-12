@@ -1,0 +1,184 @@
+/* Homework Page */
+.hw-page-header {
+  padding: 80px 0 0;
+}
+.hw-design-principles {
+  margin-top: 48px;
+}
+.hw-design-principles h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+.principles-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.principle-card {
+  padding: 24px;
+  text-align: center;
+}
+.principle-card span {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 10px;
+}
+.principle-card h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.principle-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* Assignment cards */
+.hw-assignment {
+  padding: 60px 0;
+}
+.assignment-header {
+  margin-bottom: 32px;
+}
+.assignment-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.difficulty-badge,
+.time-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  padding: 4px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+}
+.assignment-title {
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+.assignment-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+.concept-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.concept-tag {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  padding: 4px 12px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--cyan);
+}
+
+.assignment-section {
+  margin-bottom: 28px;
+}
+.assignment-section h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.scenario-text {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.75;
+  max-width: 800px;
+  background: var(--surface-2);
+  padding: 20px 24px;
+  border-left: 3px solid var(--purple);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.deliverables-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.deliverables-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-family: var(--font-mono);
+}
+.del-dot {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.spec-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.spec-list li {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  padding-left: 8px;
+}
+
+.assignment-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 24px;
+  background: rgba(0, 255, 200, 0.06);
+  border: 1px solid rgba(0, 255, 200, 0.15);
+  border-radius: var(--radius);
+  margin-top: 24px;
+}
+.tip-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.assignment-tip strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cyan);
+  margin-bottom: 4px;
+}
+.assignment-tip p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.hw-footer-cta {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 40px 0;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .principles-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .principles-grid {
+    grid-template-columns: 1fr;
+  }
+}

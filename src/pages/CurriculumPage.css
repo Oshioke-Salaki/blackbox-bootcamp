@@ -1,0 +1,136 @@
+.curriculum-page { }
+
+/* Header */
+.curriculum-header { padding: 80px 0 48px; }
+.curriculum-header .section-sub { max-width: 700px; margin-top: 12px; }
+.curriculum-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+.meta-chip {
+  padding: 8px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Tabs */
+.week-tabs-wrapper {
+  position: sticky;
+  top: 72px;
+  z-index: 100;
+  background: rgba(5, 5, 8, 0.9);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+}
+.week-tabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.week-tabs::-webkit-scrollbar { display: none; }
+.week-tab {
+  flex: 1;
+  min-width: 160px;
+  padding: 16px 20px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition);
+  color: var(--text-muted);
+}
+.week-tab:hover { background: rgba(255,255,255,0.03); color: var(--text-secondary); }
+.week-tab.active { color: var(--text-primary); }
+.week-tab-cyan.active { border-bottom-color: var(--cyan); }
+.week-tab-purple.active { border-bottom-color: var(--purple); }
+.week-tab-orange.active { border-bottom-color: var(--orange); }
+.tab-num { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px; }
+.tab-title { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Content */
+.week-content { padding: 48px 0; display: flex; flex-direction: column; gap: 40px; }
+
+/* Overview card */
+.week-overview-card { padding: 36px; }
+.border-cyan { border-color: rgba(0,255,200,0.2) !important; }
+.border-purple { border-color: rgba(155,107,255,0.2) !important; }
+.border-orange { border-color: rgba(255,123,58,0.2) !important; }
+
+.week-overview-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
+.week-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+.week-label-cyan { color: var(--cyan); }
+.week-label-purple { color: var(--purple); }
+.week-label-orange { color: var(--orange); }
+.week-overview-header h2 { font-size: 28px; font-weight: 800; }
+.week-tagline { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+.week-overview-meta { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+.week-overview-meta div { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
+.week-overview-text { font-size: 15px; color: var(--text-secondary); line-height: 1.75; }
+
+/* Objectives */
+.content-heading { font-size: 18px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.objectives-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.objective-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.obj-num { font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; flex-shrink: 0; padding-top: 2px; }
+.obj-num-cyan { color: var(--cyan); }
+.obj-num-purple { color: var(--purple); }
+.obj-num-orange { color: var(--orange); }
+
+/* Lesson accordion */
+.lessons-list { display: flex; flex-direction: column; gap: 8px; }
+.lesson-header-content { display: flex; align-items: center; gap: 16px; }
+.lesson-num { font-size: 12px; font-weight: 700; font-family: var(--font-mono); flex-shrink: 0; }
+.lesson-num-cyan { color: var(--cyan); }
+.lesson-num-purple { color: var(--purple); }
+.lesson-num-orange { color: var(--orange); }
+.lesson-title { font-size: 15px; font-weight: 700; }
+.lesson-time { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Instructor note */
+.instructor-note {
+  background: rgba(155,107,255,0.08);
+  border: 1px solid rgba(155,107,255,0.2);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+.note-label { display: block; font-size: 12px; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.instructor-note p { font-size: 14px; color: var(--text-secondary); line-height: 1.65; }
+
+/* Homework card */
+.hw-card { padding: 36px; }
+.hw-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 32px; flex-wrap: wrap; }
+.hw-title { font-size: 24px; font-weight: 800; margin: 8px 0 10px; }
+.hw-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.65; max-width: 580px; }
+.hw-meta { display: flex; flex-direction: column; gap: 12px; flex-shrink: 0; min-width: 180px; }
+.hw-meta div { display: flex; flex-direction: column; }
+.hw-meta strong { font-size: 14px; }
+
+/* Week nav */
+.week-nav { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+.week-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+.week-nav button:disabled:hover { transform: none; }
+
+@media (max-width: 700px) {
+  .objectives-list { grid-template-columns: 1fr; }
+  .week-overview-header { flex-direction: column; }
+  .week-nav { justify-content: center; }
+}
