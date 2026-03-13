@@ -152,7 +152,7 @@ src/
 
 ## Built For
 
-Built for the [Zama Bounty Program — Blockchain Track](https://dorahacks.io/hackathon/zama) by the Blackbox team.
+Built for [Zama](https://www.zama.ai) by the Blackbox team.
 
 ## License
 
