@@ -328,6 +328,21 @@
   letter-spacing: 0.06em;
 }
 
+.exercise-lesson-link {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 3px 10px;
+  border: 1px solid rgba(200, 165, 90, 0.25);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.exercise-lesson-link:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
 /* ── Code Editor ─────────────────────────────────── */
 
 .editor-wrapper {
@@ -477,6 +492,12 @@
 
 .toolbar-btn--reset:hover {
   color: var(--error);
+}
+
+.toolbar-shortcut {
+  opacity: 0.5;
+  font-size: 0.8rem;
+  margin-left: 6px;
 }
 
 .toolbar-divider {

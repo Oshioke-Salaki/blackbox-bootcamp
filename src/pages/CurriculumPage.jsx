@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import DecryptText from "../components/DecryptText";
 import CodeBlock from "../components/CodeBlock";
 import Quiz from "../components/Quiz";
@@ -709,8 +709,10 @@ export default function CurriculumPage() {
   const { markComplete, isComplete, getWeekProgress } = useProgress();
   const [expandedLessons, setExpandedLessons] = useState({});
   const [mobileWeek, setMobileWeek] = useState(0);
+  const [dismissedContinue, setDismissedContinue] = useState(false);
   const containerRef = useFadeIn(expandedLessons);
   const weekRefs = useRef({});
+  const lessonRefs = useRef({});
 
   /* count completed */
   const completedCount = WEEKS.reduce(
@@ -719,6 +721,18 @@ export default function CurriculumPage() {
     0
   );
   const overallPercent = Math.round((completedCount / TOTAL_LESSONS) * 100);
+
+  /* find first incomplete lesson */
+  const nextLesson = useMemo(() => {
+    for (const week of WEEKS) {
+      for (const lesson of week.lessons) {
+        if (!isComplete(lesson.id)) {
+          return { lesson, weekTitle: week.title };
+        }
+      }
+    }
+    return null;
+  }, [isComplete]);
 
   /* toggle lesson */
   const toggleLesson = useCallback((id) => {
@@ -732,6 +746,19 @@ export default function CurriculumPage() {
       const y = el.getBoundingClientRect().top + window.scrollY - 100;
       window.scrollTo({ top: y, behavior: "smooth" });
     }
+  }, []);
+
+  /* scroll to lesson + expand it */
+  const scrollToLesson = useCallback((lessonId) => {
+    setExpandedLessons((prev) => ({ ...prev, [lessonId]: true }));
+    setDismissedContinue(true);
+    requestAnimationFrame(() => {
+      const el = lessonRefs.current[lessonId];
+      if (el) {
+        const y = el.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
+    });
   }, []);
 
   return (
@@ -750,6 +777,31 @@ export default function CurriculumPage() {
             4 weeks. 13 lessons. From zero to production-grade confidential
             smart contracts.
           </p>
+          {nextLesson && completedCount > 0 && !dismissedContinue && (
+            <div className="cur-continue">
+              <div className="cur-continue-inner">
+                <div className="cur-continue-text">
+                  <span className="cur-continue-label">Continue where you left off</span>
+                  <span className="cur-continue-lesson">
+                    {nextLesson.lesson.num} &mdash; {nextLesson.lesson.title}
+                  </span>
+                </div>
+                <button
+                  className="btn-primary cur-continue-btn"
+                  onClick={() => scrollToLesson(nextLesson.lesson.id)}
+                >
+                  Continue
+                </button>
+                <button
+                  className="cur-continue-dismiss"
+                  onClick={() => setDismissedContinue(true)}
+                  aria-label="Dismiss"
+                >
+                  &times;
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -854,6 +906,7 @@ export default function CurriculumPage() {
                     return (
                       <div
                         key={lesson.id}
+                        ref={(el) => (lessonRefs.current[lesson.id] = el)}
                         className={`cur-lesson${isExpanded ? " expanded" : ""}${
                           done ? " completed" : ""
                         }`}

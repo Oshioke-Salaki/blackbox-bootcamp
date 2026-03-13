@@ -7,6 +7,7 @@ import CurriculumPage from "./pages/CurriculumPage";
 import HomeworkPage from "./pages/HomeworkPage";
 import ResourcesPage from "./pages/ResourcesPage";
 import SandboxPage from "./pages/SandboxPage";
+import ChatBot from "./components/ChatBot";
 import "./App.css";
 
 function ScrollToTop() {
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/sandbox" element={<SandboxPage />} />
       </Routes>
       <Footer />
+      <ChatBot />
     </>
   );
 }

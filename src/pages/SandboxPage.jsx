@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Link } from "react-router-dom";
 import DecryptText from "../components/DecryptText";
 import "./SandboxPage.css";
 
@@ -696,6 +697,11 @@ export default function SandboxPage() {
   }, [activeIndex, selectExercise]);
 
   const handleKeyDown = useCallback((e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleCheck();
+      return;
+    }
     if (e.key === "Tab") {
       e.preventDefault();
       const textarea = e.target;
@@ -708,7 +714,7 @@ export default function SandboxPage() {
         textarea.selectionStart = textarea.selectionEnd = start + 4;
       });
     }
-  }, []);
+  }, [handleCheck]);
 
   const passedCount = results ? results.filter((r) => r.passed).length : 0;
   const totalChecks = exercise.checks.length;
@@ -833,6 +839,9 @@ export default function SandboxPage() {
                   </span>
                 </div>
                 <div className="exercise-info-right">
+                  <Link to="/curriculum" className="exercise-lesson-link">
+                    Lesson {exercise.lesson} &rarr;
+                  </Link>
                   <span
                     className="exercise-badge"
                     style={{
@@ -937,8 +946,8 @@ export default function SandboxPage() {
               {/* Toolbar */}
               <div className="ide-toolbar">
                 <div className="ide-toolbar-left">
-                  <button className="toolbar-btn toolbar-btn--primary" onClick={handleCheck}>
-                    Run Checks
+                  <button className="toolbar-btn toolbar-btn--primary" onClick={handleCheck} title="Ctrl+Enter">
+                    Run Checks <span className="toolbar-shortcut">{navigator.platform?.includes("Mac") ? "\u2318+Enter" : "Ctrl+Enter"}</span>
                   </button>
                   <button
                     className="toolbar-btn"
