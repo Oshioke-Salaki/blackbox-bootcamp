@@ -29,7 +29,7 @@ export default function Navbar() {
       <div className="navbar-inner">
         <Link to="/" className="navbar-brand">
           <span className="brand-mark">BX</span>
-          <span className="brand-text"> Zama Blackbox</span>
+          <span className="brand-text">Blackbox</span>
         </Link>
 
         <div className={`navbar-links${open ? " open" : ""}`}>
