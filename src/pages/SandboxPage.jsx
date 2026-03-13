@@ -10,14 +10,11 @@ const SOL_TYPES =
 const SOL_NUMBERS = /\b(0x[\da-fA-F]+|\d+(\.\d+)?)\b/g;
 
 function highlightSolidity(code) {
-  // Escape HTML first
   let html = code
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  // Placeholder approach to avoid nested replacements
-  // Use __TKn__ format so number/keyword regexes won't match inside placeholders
   const tokens = [];
   const ph = (cls, match) => {
     const idx = tokens.length;
@@ -25,40 +22,29 @@ function highlightSolidity(code) {
     return `__TK${idx}TK__`;
   };
 
-  // Comments (single-line and multi-line)
   html = html.replace(/(\/\/[^\n]*)/g, (m) => ph("cm", m));
   html = html.replace(/(\/\*[\s\S]*?\*\/)/g, (m) => ph("cm", m));
-
-  // Strings
   html = html.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g, (m) => ph("str", m));
-
-  // Types (before keywords so euint64 matches as type not keyword)
   html = html.replace(SOL_TYPES, (m) => ph("ty", m));
-
-  // Keywords
   html = html.replace(SOL_KEYWORDS, (m) => ph("kw", m));
-
-  // Numbers
   html = html.replace(SOL_NUMBERS, (m) => ph("num", m));
-
-  // Function calls: word followed by (
   html = html.replace(/\b([a-zA-Z_]\w*)\s*(?=\()/g, (full, name) => {
     if (full.includes("__TK")) return full;
     return ph("fn", name);
   });
-
-  // Restore tokens
   html = html.replace(/__TK(\d+)TK__/g, (_, idx) => tokens[idx]);
 
   return html;
 }
 
+/* ── Exercise data ─────────────────────────────────── */
 const EXERCISES = [
   {
     id: 1,
     title: "Declare Encrypted Storage",
     difficulty: "Beginner",
     lesson: "1.2",
+    filename: "SecureVault.sol",
     description:
       "Replace the standard uint256 balance mapping with an encrypted euint64 mapping. Add an encrypted boolean flag.",
     template: `// SPDX-License-Identifier: MIT
@@ -98,6 +84,7 @@ contract SecureVault is ZamaEthereumConfig {
     title: "Accept Encrypted Input",
     difficulty: "Beginner",
     lesson: "1.2",
+    filename: "Deposit.sol",
     description:
       "Write a deposit function that accepts an encrypted amount from the user and adds it to their balance.",
     template: `function deposit(___BLANK___ encAmount, bytes calldata proof) external {
@@ -136,6 +123,7 @@ contract SecureVault is ZamaEthereumConfig {
     title: "The No-Revert Transfer",
     difficulty: "Intermediate",
     lesson: "1.3",
+    filename: "Transfer.sol",
     description:
       "Implement a transfer that never reverts. Use FHE.select to silently no-op when the sender has insufficient balance.",
     template: `function transfer(address to, externalEuint64 encAmount, bytes calldata proof) external {
@@ -204,6 +192,7 @@ contract SecureVault is ZamaEthereumConfig {
     title: "Boolean Masking",
     difficulty: "Intermediate",
     lesson: "2.2",
+    filename: "BoolMask.sol",
     description:
       "Combine three encrypted conditions into a single mask using FHE boolean operators, then apply it with FHE.select.",
     template: `// Three conditions must all be true
@@ -251,6 +240,7 @@ balances[sender] = FHE.select(
     title: "Constant-Product Swap",
     difficulty: "Intermediate",
     lesson: "2.3",
+    filename: "DarkPool.sol",
     description:
       "Implement the core AMM swap formula using encrypted arithmetic: dy = reserveB * dx / (reserveA + dx)",
     template: `function swap(externalEuint64 encAmount, bytes calldata proof) external {
@@ -296,6 +286,7 @@ balances[sender] = FHE.select(
     title: "Sealed Bid",
     difficulty: "Advanced",
     lesson: "3.3",
+    filename: "BlindAuction.sol",
     description:
       "Track the highest bid in a blind auction. Compare each new bid with the current highest and update using FHE.select -- without revealing which bid is higher.",
     template: `function bid(externalEuint64 encBid, bytes calldata proof) external {
@@ -353,6 +344,7 @@ balances[sender] = FHE.select(
     title: "Public Decryption",
     difficulty: "Advanced",
     lesson: "3.1",
+    filename: "Reveal.sol",
     description:
       "After a blind auction ends, reveal the winner publicly by marking the highest bid and winner address as publicly decryptable.",
     template: `function revealWinner() external {
@@ -395,6 +387,7 @@ balances[sender] = FHE.select(
     title: "Cross-Contract ACL",
     difficulty: "Advanced",
     lesson: "4.2",
+    filename: "PayrollACL.sol",
     description:
       "Pass an encrypted salary from the PayrollVault to the SalaryRegistry. Grant the registry contract ACL permission before the cross-contract call.",
     template: `// In PayrollVault contract
@@ -456,6 +449,7 @@ function storeSalary(address emp, euint64 sal) external onlyVault {
     title: "Selective Encryption",
     difficulty: "Advanced",
     lesson: "4.1",
+    filename: "Employee.sol",
     description:
       "Fix this over-encrypted struct. Only the salary field needs privacy -- everything else should be plaintext to save 60-70% gas.",
     template: `// BEFORE: Over-encrypted (wasteful)
@@ -499,6 +493,7 @@ struct Employee {
     title: "Relayer SDK Integration",
     difficulty: "Expert",
     lesson: "3.2",
+    filename: "client.ts",
     description:
       "Write the client-side code to generate an encrypted bid and submit it to a BlindAuction contract using the Relayer SDK.",
     template: `import { ___BLANK___, SepoliaConfig } from "@zama-fhe/relayer-sdk";
@@ -550,6 +545,8 @@ await auctionContract.bid(handles[0], inputProof);`,
   },
 ];
 
+/* ── Helpers ───────────────────────────────────────── */
+
 function getDifficultyColor(difficulty) {
   switch (difficulty) {
     case "Beginner":
@@ -585,14 +582,42 @@ function useFadeIn(dep) {
   return ref;
 }
 
+/* ── Component ─────────────────────────────────────── */
+
+function getSavedCode(exerciseId) {
+  try {
+    const saved = JSON.parse(localStorage.getItem("sandbox-solutions") || "{}");
+    return saved[exerciseId] || null;
+  } catch { return null; }
+}
+
+function saveCode(exerciseId, code) {
+  try {
+    const saved = JSON.parse(localStorage.getItem("sandbox-solutions") || "{}");
+    saved[exerciseId] = code;
+    localStorage.setItem("sandbox-solutions", JSON.stringify(saved));
+  } catch { /* ignore */ }
+}
+
 export default function SandboxPage() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [code, setCode] = useState(EXERCISES[0].template);
+  const [code, setCode] = useState(
+    () => getSavedCode(EXERCISES[0].id) || EXERCISES[0].template
+  );
   const [results, setResults] = useState(null);
   const [showHint, setShowHint] = useState(false);
   const [showSolutionBtn, setShowSolutionBtn] = useState(false);
-  const [completed, setCompleted] = useState(new Set());
-  const [, setHasChecked] = useState(false);
+  const [completed, setCompleted] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("sandbox-completed") || "[]");
+      return new Set(saved);
+    } catch { return new Set(); }
+  });
+  const [outputOpen, setOutputOpen] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("sandbox-completed", JSON.stringify([...completed]));
+  }, [completed]);
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
   const wrapperRef = useFadeIn(activeIndex);
@@ -605,18 +630,19 @@ export default function SandboxPage() {
   }, []);
 
   const exercise = EXERCISES[activeIndex];
+  const allPassed = results && results.every((r) => r.passed);
+  const lineCount = code.split("\n").length;
+  const highlightedCode = useMemo(() => highlightSolidity(code), [code]);
 
-  const selectExercise = useCallback(
-    (index) => {
-      setActiveIndex(index);
-      setCode(EXERCISES[index].template);
-      setResults(null);
-      setShowHint(false);
-      setShowSolutionBtn(false);
-      setHasChecked(false);
-    },
-    []
-  );
+  const selectExercise = useCallback((index) => {
+    setActiveIndex(index);
+    const ex = EXERCISES[index];
+    setCode(getSavedCode(ex.id) || ex.template);
+    setResults(null);
+    setShowHint(false);
+    setShowSolutionBtn(false);
+    setOutputOpen(false);
+  }, []);
 
   const handleCheck = useCallback(() => {
     const checkResults = exercise.checks.map((check) => {
@@ -628,11 +654,12 @@ export default function SandboxPage() {
     });
 
     setResults(checkResults);
-    setHasChecked(true);
+    setOutputOpen(true);
 
-    const allPassed = checkResults.every((r) => r.passed);
-    if (allPassed) {
+    const passed = checkResults.every((r) => r.passed);
+    if (passed) {
       setCompleted((prev) => new Set([...prev, exercise.id]));
+      saveCode(exercise.id, code);
     } else {
       setShowSolutionBtn(true);
     }
@@ -640,6 +667,26 @@ export default function SandboxPage() {
 
   const handleShowSolution = useCallback(() => {
     setCode(exercise.solution);
+  }, [exercise]);
+
+  const handleReset = useCallback(() => {
+    setCode(exercise.template);
+    setResults(null);
+    setOutputOpen(false);
+    setShowHint(false);
+    setShowSolutionBtn(false);
+    // Clear saved solution so it reloads as template
+    try {
+      const saved = JSON.parse(localStorage.getItem("sandbox-solutions") || "{}");
+      delete saved[exercise.id];
+      localStorage.setItem("sandbox-solutions", JSON.stringify(saved));
+    } catch { /* ignore */ }
+    // Remove from completed
+    setCompleted((prev) => {
+      const next = new Set(prev);
+      next.delete(exercise.id);
+      return next;
+    });
   }, [exercise]);
 
   const handleNextExercise = useCallback(() => {
@@ -663,15 +710,15 @@ export default function SandboxPage() {
     }
   }, []);
 
-  const allPassed = results && results.every((r) => r.passed);
-  const lineCount = code.split("\n").length;
-  const highlightedCode = useMemo(() => highlightSolidity(code), [code]);
+  const passedCount = results ? results.filter((r) => r.passed).length : 0;
+  const totalChecks = exercise.checks.length;
 
   return (
     <section className="sandbox-page" ref={wrapperRef}>
       <div className="container">
+        {/* Header */}
         <header className="sandbox-header fade-in">
-          <span className="tag tag-accent">Interactive</span>
+          <span className="tag tag-accent">Interactive Lab</span>
           <DecryptText
             text="FHE Sandbox"
             as="h1"
@@ -681,47 +728,113 @@ export default function SandboxPage() {
           />
           <p className="sandbox-subtitle">
             Hands-on coding exercises. Fill in the blanks, check your solution,
-            build muscle memory.
+            build muscle memory with encrypted computation.
           </p>
+          <div className="sandbox-stats">
+            <div className="sandbox-stat">
+              <span className="sandbox-stat-value">{completed.size}</span>
+              <span className="sandbox-stat-label">Solved</span>
+            </div>
+            <div className="sandbox-stat">
+              <span className="sandbox-stat-value">{EXERCISES.length}</span>
+              <span className="sandbox-stat-label">Exercises</span>
+            </div>
+            <div className="sandbox-stat">
+              <span className="sandbox-stat-value">
+                {Math.round((completed.size / EXERCISES.length) * 100)}%
+              </span>
+              <span className="sandbox-stat-label">Complete</span>
+            </div>
+          </div>
         </header>
 
-        <div className="sandbox-layout fade-in">
-          <aside className="sandbox-sidebar">
-            <nav className="sidebar-nav">
-              {EXERCISES.map((ex, i) => (
-                <button
-                  key={ex.id}
-                  className={
-                    "sidebar-item" +
-                    (i === activeIndex ? " sidebar-item--active" : "") +
-                    (completed.has(ex.id) ? " sidebar-item--completed" : "")
-                  }
-                  onClick={() => selectExercise(i)}
-                >
-                  <span className="sidebar-num">{String(ex.id).padStart(2, "0")}</span>
-                  <span className="sidebar-title">{ex.title}</span>
-                  <span
-                    className="sidebar-dot"
-                    style={{ background: getDifficultyColor(ex.difficulty) }}
-                  />
-                  {completed.has(ex.id) && (
-                    <span className="sidebar-check">&#10003;</span>
-                  )}
-                </button>
-              ))}
-            </nav>
-          </aside>
+        {/* IDE Shell */}
+        <div className="ide-shell fade-in">
+          {/* Titlebar */}
+          <div className="ide-titlebar">
+            <div className="ide-titlebar-dots">
+              <span className="ide-dot ide-dot--red" />
+              <span className="ide-dot ide-dot--yellow" />
+              <span className="ide-dot ide-dot--green" />
+            </div>
+            <span className="ide-titlebar-text">
+              fhe-sandbox &mdash; {exercise.filename}
+            </span>
+            <div className="ide-titlebar-actions">
+              <button
+                className="ide-action-btn"
+                onClick={() => setShowHint((h) => !h)}
+              >
+                {showHint ? "[ hide hint ]" : "[ hint ]"}
+              </button>
+            </div>
+          </div>
 
-          <main className="sandbox-main">
-            <div className={"exercise-card" + (allPassed ? " exercise-card--success" : "")}>
-              <div className="exercise-header">
-                <span className="exercise-num">
-                  Exercise {String(exercise.id).padStart(2, "0")}
-                </span>
-                <h2 className="exercise-title">{exercise.title}</h2>
-                <div className="exercise-meta">
+          {/* Body */}
+          <div className="ide-body">
+            {/* Sidebar / File Explorer */}
+            <div className="ide-sidebar">
+              <div className="ide-sidebar-header">
+                <span className="ide-sidebar-label">Exercises</span>
+              </div>
+              <div className="ide-file-list">
+                {EXERCISES.map((ex, i) => (
+                  <button
+                    key={ex.id}
+                    className={
+                      "ide-file-item" +
+                      (i === activeIndex ? " ide-file-item--active" : "")
+                    }
+                    onClick={() => selectExercise(i)}
+                  >
+                    <span className="ide-file-num">
+                      {String(ex.id).padStart(2, "0")}
+                    </span>
+                    <span className="ide-file-name">{ex.filename}</span>
+                    {completed.has(ex.id) ? (
+                      <span className="ide-file-status ide-file-status--done">
+                        &#10003;
+                      </span>
+                    ) : (
+                      <span
+                        className="ide-file-status--dot"
+                        style={{ background: getDifficultyColor(ex.difficulty) }}
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Main Editor Panel */}
+            <div className="ide-main">
+              {/* Tab bar */}
+              <div className="ide-tabs">
+                <button className="ide-tab ide-tab--active">
                   <span
-                    className="exercise-difficulty"
+                    className="ide-tab-dot"
+                    style={{ background: getDifficultyColor(exercise.difficulty) }}
+                  />
+                  {exercise.filename}
+                </button>
+                <button className="ide-tab" style={{ marginLeft: "auto" }}>
+                  {exercise.difficulty} &middot; Lesson {exercise.lesson}
+                </button>
+              </div>
+
+              {/* Exercise info bar */}
+              <div className="exercise-info">
+                <div className="exercise-info-left">
+                  <span className="exercise-info-title">
+                    {String(exercise.id).padStart(2, "0")}. {exercise.title}
+                  </span>
+                  <span className="exercise-info-desc">
+                    {exercise.description}
+                  </span>
+                </div>
+                <div className="exercise-info-right">
+                  <span
+                    className="exercise-badge"
                     style={{
                       color: getDifficultyColor(exercise.difficulty),
                       borderColor: getDifficultyColor(exercise.difficulty),
@@ -729,14 +842,10 @@ export default function SandboxPage() {
                   >
                     {exercise.difficulty}
                   </span>
-                  <span className="tag">Lesson {exercise.lesson}</span>
                 </div>
               </div>
 
-              <div className="exercise-description">
-                <p>{exercise.description}</p>
-              </div>
-
+              {/* Editor */}
               <div className="editor-wrapper">
                 <div className="editor-line-numbers" aria-hidden="true">
                   {Array.from({ length: lineCount }, (_, i) => (
@@ -766,75 +875,104 @@ export default function SandboxPage() {
                 </div>
               </div>
 
-              <div className="exercise-actions">
-                <button className="btn-primary" onClick={handleCheck}>
-                  Check Solution
-                </button>
-                <button
-                  className="btn-outline"
-                  onClick={() => setShowHint((h) => !h)}
-                >
-                  {showHint ? "Hide Hint" : "Show Hint"}
-                </button>
-                {showSolutionBtn && !allPassed && (
-                  <button className="btn-outline" onClick={handleShowSolution}>
-                    Show Solution
+              {/* Output / Terminal Panel */}
+              <div className={"ide-output" + (outputOpen ? " ide-output--open" : "")}>
+                <div className="ide-output-header">
+                  <span className="ide-output-tab">Output</span>
+                  <button
+                    className="ide-output-close"
+                    onClick={() => setOutputOpen(false)}
+                  >
+                    &times;
                   </button>
-                )}
-              </div>
-
-              {showHint && (
-                <div className="hint-panel">
-                  <span className="hint-label">Hint</span>
-                  <p>{exercise.hint}</p>
                 </div>
-              )}
-
-              {results && (
-                <div className={"feedback-panel" + (allPassed ? " feedback-panel--success" : "")}>
-                  <div className="feedback-title">
-                    {allPassed ? "All checks passed" : "Results"}
-                  </div>
-                  <ul className="feedback-list">
-                    {results.map((r, i) => (
-                      <li
-                        key={i}
-                        className={
-                          "feedback-item" +
-                          (r.passed ? " feedback-item--pass" : " feedback-item--fail")
-                        }
-                      >
-                        <span className="feedback-icon">
-                          {r.passed ? "\u2713" : "\u2717"}
-                        </span>
-                        <span>{r.label}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {allPassed && (
-                    <div className="success-message">
-                      <p>Exercise complete. Well done.</p>
-                      {activeIndex < EXERCISES.length - 1 && (
-                        <button className="btn-primary" onClick={handleNextExercise}>
-                          Next Exercise
+                <div className="ide-output-body">
+                  {results && results.map((r, i) => (
+                    <div key={i} className="output-line">
+                      <span className={"output-icon" + (r.passed ? " output-icon--pass" : " output-icon--fail")}>
+                        {r.passed ? "\u2713" : "\u2717"}
+                      </span>
+                      <span className={"output-text" + (r.passed ? " output-text--pass" : " output-text--fail")}>
+                        {r.label}
+                      </span>
+                    </div>
+                  ))}
+                  {showHint && (
+                    <div className="hint-inline">
+                      <span className="hint-inline-label">Hint</span>
+                      <p>{exercise.hint}</p>
+                    </div>
+                  )}
+                  {results && (
+                    <div className="output-summary">
+                      <span className={"output-summary-text" + (allPassed ? " output-summary-text--pass" : " output-summary-text--fail")}>
+                        {allPassed
+                          ? `All ${totalChecks} checks passed`
+                          : `${passedCount}/${totalChecks} checks passed`}
+                      </span>
+                      {allPassed && activeIndex < EXERCISES.length - 1 && (
+                        <button className="toolbar-btn toolbar-btn--primary" onClick={handleNextExercise}>
+                          Next Exercise &rarr;
                         </button>
-                      )}
-                      {activeIndex === EXERCISES.length - 1 && (
-                        <p className="completion-note">
-                          All exercises finished. You have completed the FHE Sandbox.
-                        </p>
                       )}
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Success banner */}
+              {allPassed && (
+                <div className="success-overlay">
+                  <span className="success-text">
+                    Exercise complete
+                  </span>
+                  {activeIndex === EXERCISES.length - 1 && completed.size === EXERCISES.length && (
+                    <span className="success-sub">
+                      &mdash; All exercises finished. Sandbox mastered.
+                    </span>
+                  )}
+                </div>
               )}
+
+              {/* Toolbar */}
+              <div className="ide-toolbar">
+                <div className="ide-toolbar-left">
+                  <button className="toolbar-btn toolbar-btn--primary" onClick={handleCheck}>
+                    Run Checks
+                  </button>
+                  <button
+                    className="toolbar-btn"
+                    onClick={() => {
+                      setShowHint((h) => !h);
+                      if (!outputOpen) setOutputOpen(true);
+                    }}
+                  >
+                    {showHint ? "Hide Hint" : "Hint"}
+                  </button>
+                  {showSolutionBtn && !allPassed && (
+                    <button className="toolbar-btn" onClick={handleShowSolution}>
+                      Solution
+                    </button>
+                  )}
+                </div>
+                <div className="ide-toolbar-right">
+                  <button className="toolbar-btn toolbar-btn--reset" onClick={handleReset}>
+                    Reset
+                  </button>
+                  <span className="toolbar-divider" />
+                  <span className="progress-label" style={{ fontSize: "0.72rem" }}>
+                    {completed.size}/{EXERCISES.length}
+                  </span>
+                </div>
+              </div>
             </div>
-          </main>
+          </div>
         </div>
 
+        {/* Progress bar */}
         <div className="sandbox-progress fade-in">
           <span className="progress-label">
-            {completed.size} / {EXERCISES.length} completed
+            {completed.size} of {EXERCISES.length} exercises completed
           </span>
           <div className="progress-bar">
             <div
@@ -843,6 +981,20 @@ export default function SandboxPage() {
             />
           </div>
         </div>
+
+        {/* All complete banner */}
+        {completed.size === EXERCISES.length && (
+          <div className="sandbox-complete fade-in">
+            <span className="sandbox-complete-tag">SANDBOX MASTERED</span>
+            <h3 className="sandbox-complete-title">
+              All Exercises Complete
+            </h3>
+            <p className="sandbox-complete-text">
+              You&apos;ve completed every FHE coding exercise. You now have the
+              muscle memory to build encrypted smart contracts with confidence.
+            </p>
+          </div>
+        )}
       </div>
     </section>
   );
