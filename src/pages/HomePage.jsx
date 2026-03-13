@@ -1,100 +1,107 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import DecryptText from "../components/DecryptText";
+import CodeBlock from "../components/CodeBlock";
 import "./HomePage.css";
+
+const HERO_CODE = `<span class="cm">// WEEK 1: Every balance is encrypted on-chain</span>
+<span class="kw">import</span> <span class="str">"fhevm/lib/FHE.sol"</span>;
+<span class="kw">import</span> <span class="str">"fhevm/config/ZamaEthereumConfig.sol"</span>;
+
+<span class="kw">contract</span> <span class="ty">ConfidentialERC20</span> <span class="kw">is</span> <span class="ty">ZamaEthereumConfig</span> {
+  <span class="ty">mapping</span>(<span class="ty">address</span> => <span class="ty">euint64</span>) <span class="kw">private</span> _balances;
+
+  <span class="kw">function</span> <span class="fn">transfer</span>(<span class="ty">address</span> to, <span class="ty">externalEuint64</span> enc, <span class="ty">bytes</span> <span class="kw">calldata</span> proof)
+    <span class="kw">external</span> {
+    <span class="ty">euint64</span> amount = FHE.<span class="fn">fromExternal</span>(enc, proof);
+    <span class="ty">ebool</span>  ok = FHE.<span class="fn">le</span>(amount, _balances[msg.sender]);
+
+    <span class="cm">// No revert — silently no-op if insufficient</span>
+    _balances[msg.sender] = FHE.<span class="fn">select</span>(ok,
+      FHE.<span class="fn">sub</span>(_balances[msg.sender], amount),
+      _balances[msg.sender]);
+    _balances[to] = FHE.<span class="fn">select</span>(ok,
+      FHE.<span class="fn">add</span>(_balances[to], amount),
+      _balances[to]);
+  }
+}`;
 
 const WEEKS = [
   {
     week: "01",
-    color: "cyan",
     title: "The FHE Paradigm Shift",
     subtitle: "Environment Setup & Encrypted Types",
-    desc: "Understand how Fully Homomorphic Encryption rewrites the rules of on-chain state and deploy your first confidential contract.",
-    topics: [
-      "EVM vs fhEVM mental model",
-      "euint8, euint32, euint64, ebool, eaddress",
-      "Hardhat mock FHE environment",
-      'The "No Revert" Rule in practice',
-    ],
-    hw: "Confidential ERC20 Token",
+    desc: "Understand how Fully Homomorphic Encryption rewrites the rules of on-chain state. Deploy your first confidential contract and learn why every conditional must be rewritten as a selection.",
+    topics: ["FHE Coprocessor", "Encrypted Types", "FHE.select", "No-Revert Pattern"],
+    hw: "Confidential ERC20",
     time: "5 hrs",
   },
   {
     week: "02",
-    color: "purple",
     title: "Advanced Encrypted Logic",
     subtitle: "Arithmetic, Comparisons & Control Flow",
-    desc: "Master the art of conditional logic without branching. Learn why FHE.select is the most important function you will ever write.",
-    topics: [
-      "FHE.add, sub, mul, div, rem",
-      "FHE.le, lt, ge, gt, eq, ne",
-      "Encrypted boolean masking patterns",
-      "Dark Pool AMM mechanics",
-    ],
-    hw: "Dark Pool AMM (Simplified)",
+    desc: "Master conditional logic without branching. Learn why FHE.select is the most important function you will ever write, and build a dark pool that hides trade size from everyone.",
+    topics: ["FHE Arithmetic", "Boolean Masking", "Safe Math", "Dark Pool Mechanics"],
+    hw: "Dark Pool AMM",
     time: "6 hrs",
   },
   {
     week: "03",
-    color: "orange",
-    title: "Access Control & dApp Frontend",
-    subtitle: "Decryption & @zama-fhe/relayer-sdk",
-    desc: "Safely surface encrypted data to authorized users and wire a production-ready frontend that generates FHE payloads in the browser.",
-    topics: [
-      "Gateway decryption patterns",
-      "userDecrypt() for viewing private state",
-      "@zama-fhe/relayer-sdk integration",
-      "Blind auction architecture",
-    ],
-    hw: "Confidential Blind Auction",
-    time: "6.5 hrs",
+    title: "Access Control & Decryption",
+    subtitle: "Gateway Patterns & Frontend SDK",
+    desc: "Safely surface encrypted data to authorized users. Wire a production-ready frontend that generates FHE payloads in the browser and submit sealed bids on-chain.",
+    topics: ["Public Decryption", "Relayer SDK", "Browser Payloads", "Sealed Bids"],
+    hw: "Blind Auction",
+    time: "7 hrs",
   },
   {
     week: "04",
-    color: "cyan",
-    title: "Production Architecture & Capstone",
-    subtitle: "Gas Optimization & Real-World Deployment",
-    desc: "Optimize FHE operations, architect multi-contract systems, and deploy a production-grade confidential payroll system end-to-end.",
-    topics: [
-      "Gas & ciphertext compute overhead",
-      "Selective encryption strategy",
-      "Coprocessor & multi-network patterns",
-      "End-to-end Hardhat test suites",
-    ],
-    hw: "Confidential Mass-Payroll System",
-    time: "9+ hrs (Capstone)",
+    title: "Production & Capstone",
+    subtitle: "Multi-Contract Architecture & Deployment",
+    desc: "Optimize FHE gas costs, architect multi-contract encrypted systems, and deploy a production-grade confidential payroll system end-to-end on Sepolia.",
+    topics: ["Gas Optimization", "Selective Encryption", "Multi-Contract FHE", "Sepolia Deploy"],
+    hw: "Mass Payroll System",
+    time: "10+ hrs",
   },
 ];
 
 const STATS = [
-  { value: "4", label: "Weeks of Curriculum", icon: "📅" },
-  { value: "4", label: "Homework Projects", icon: "🧪" },
-  { value: "15+", label: "Solidity Code Templates", icon: "📝" },
-  { value: "∞", label: "Learners Supported", icon: "🌐" },
+  { value: "4", label: "Weeks" },
+  { value: "5", label: "Projects" },
+  { value: "13", label: "Lessons" },
+  { value: "30+", label: "Quizzes" },
+];
+
+const PIPELINE = [
+  { label: "Plaintext 42", type: "data" },
+  { label: "Encrypt", type: "op" },
+  { label: "euint64 0x7f3a...", type: "data" },
+  { label: "FHE.add()", type: "op" },
+  { label: "euint64 0xb2c1...", type: "data" },
+  { label: "Decrypt", type: "op" },
+  { label: "Result 84", type: "data" },
+];
+
+const BUILT_FOR = [
+  {
+    role: "Web3 Developers",
+    desc: "Ethereum and Solidity developers looking to add confidential state to their dApps without learning cryptography theory.",
+  },
+  {
+    role: "Smart Contract Engineers",
+    desc: "Protocol engineers ready to offer privacy-preserving features at the contract layer, from DeFi to governance.",
+  },
+  {
+    role: "Technical Educators",
+    desc: "Community leaders and bootcamp instructors planning to run FHEVM workshops and train the next wave of builders.",
+  },
 ];
 
 const PREREQS = [
-  { icon: "⛓", label: "Basic Ethereum & EVM knowledge" },
-  { icon: "📜", label: "Solidity syntax familiarity" },
-  { icon: "🛠", label: "Experience with Hardhat" },
-  { icon: "🚫", label: "No FHE knowledge required" },
-];
-
-const WHO = [
-  {
-    role: "Web3 Developer",
-    desc: "Ethereum and Solidity developers looking to add confidential state to their dApps.",
-    icon: "💻",
-  },
-  {
-    role: "Smart Contract Dev",
-    desc: "Protocol engineers ready to offer privacy-preserving features at the contract layer.",
-    icon: "⚙️",
-  },
-  {
-    role: "Technical Educator",
-    desc: "Community leaders and bootcamp instructors planning to run FHEVM workshops at scale.",
-    icon: "🎓",
-  },
+  { label: "Basic Ethereum & EVM knowledge", accent: false },
+  { label: "Solidity syntax familiarity", accent: false },
+  { label: "Experience with Hardhat", accent: false },
+  { label: "No FHE knowledge required", accent: true },
 ];
 
 function useFadeIn() {
@@ -108,7 +115,7 @@ function useFadeIn() {
             observer.unobserve(e.target);
           }
         }),
-      { threshold: 0.12 },
+      { threshold: 0.12 }
     );
     const elements = ref.current?.querySelectorAll(".fade-in") || [];
     elements.forEach((el) => observer.observe(el));
@@ -124,41 +131,14 @@ export default function HomePage() {
     <div className="page home-page" ref={ref}>
       {/* Hero */}
       <section className="hero">
-        <div className="hero-bg">
-          <div
-            className="orb orb-cyan"
-            style={{
-              width: 600,
-              height: 600,
-              background: "rgba(0,255,200,0.06)",
-              top: -100,
-              left: "60%",
-            }}
-          />
-          <div
-            className="orb orb-purple"
-            style={{
-              width: 500,
-              height: 500,
-              background: "rgba(155,107,255,0.07)",
-              top: 200,
-              left: "-10%",
-              animationDelay: "3s",
-            }}
-          />
-        </div>
         <div className="container hero-inner">
-          <div className="hero-badge fade-in">
-            <span className="pulse-dot" />
-            <span className="tag tag-cyan">
-              Open Enrolment · Cohort 1 · April 2026
-            </span>
-          </div>
-          <h1 className="hero-title fade-in">
-            Build in the Dark.
-            <br />
-            <span className="glow-text">Execute in the Light.</span>
-          </h1>
+          <DecryptText
+            text="Build in the Dark. Execute in the Light."
+            as="h1"
+            className="hero-title fade-in"
+            delay={200}
+            duration={1400}
+          />
           <p className="hero-sub fade-in">
             The <strong>FHEVM Blackbox Bootcamp</strong> is the most
             comprehensive 4-week developer program for building confidential
@@ -167,68 +147,46 @@ export default function HomePage() {
           </p>
           <div className="hero-actions fade-in">
             <Link to="/curriculum" className="btn-primary">
-              View Full Curriculum →
+              Start Learning
             </Link>
             <Link to="/homework" className="btn-outline">
-              See Homework Specs
+              View Homework
             </Link>
           </div>
-          <div className="hero-code-wrapper fade-in">
-            <div className="hero-code-header">
-              <div className="dots">
-                <span />
-                <span />
-                <span />
-              </div>
-              <span>ConfidentialToken.sol</span>
-              <span className="tag tag-cyan" style={{ marginLeft: "auto" }}>
-                Week 1 · Homework
-              </span>
-            </div>
-            <div className="code-block hero-code">
-              <pre
-                dangerouslySetInnerHTML={{
-                  __html: `<span class="cm">// WEEK 1 GOAL: Hide every balance &amp; transfer amount</span>
-<span class="kw">import</span> <span class="str">"@fhevm/solidity/lib/FHE.sol"</span>;
-<span class="kw">import</span> <span class="str">"@fhevm/solidity/config/ZamaEthereumConfig.sol"</span>;
-
-<span class="kw">contract</span> <span class="ty">ConfidentialERC20</span> <span class="kw">is</span> <span class="ty">ZamaEthereumConfig</span> {
-  <span class="ty">mapping</span>(<span class="ty">address</span> =&gt; <span class="ty">euint64</span>) <span class="kw">private</span> _balances;
-
-  <span class="kw">function</span> <span class="fn">transfer</span>(<span class="ty">address</span> to, <span class="ty">externalEuint64</span> encAmount, <span class="ty">bytes</span> calldata inputProof)
-    <span class="kw">external</span> <span class="kw">returns</span> (<span class="ty">bool</span>) {
-
-    <span class="ty">euint64</span> amount = FHE.<span class="fn">fromExternal</span>(encAmount, inputProof);
-    <span class="ty">ebool</span>  canTransfer = FHE.<span class="fn">le</span>(amount, _balances[msg.sender]);
-
-    <span class="cm">// ✅ No revert — silently do nothing if insufficient balance</span>
-    _balances[msg.sender] = FHE.<span class="fn">select</span>(
-      canTransfer,
-      FHE.<span class="fn">sub</span>(_balances[msg.sender], amount),
-      _balances[msg.sender]
-    );
-    _balances[to] = FHE.<span class="fn">select</span>(
-      canTransfer,
-      FHE.<span class="fn">add</span>(_balances[to], amount),
-      _balances[to]
-    );
-    <span class="kw">return</span> <span class="num">true</span>;
-  }
-}`,
-                }}
-              />
-            </div>
+          <div className="hero-code fade-in">
+            <CodeBlock
+              code={HERO_CODE}
+              language="solidity"
+              filename="ConfidentialToken.sol"
+            />
           </div>
         </div>
       </section>
 
-      {/* Stats */}
+      {/* Encryption Visualization Strip */}
+      <section className="pipeline-strip fade-in">
+        <div className="pipeline-track">
+          {PIPELINE.map((step, i) => (
+            <div key={i} className="pipeline-segment">
+              {i > 0 && <span className="pipeline-arrow">&rarr;</span>}
+              <span
+                className={`pipeline-box ${
+                  step.type === "op" ? "pipeline-op" : "pipeline-data"
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Stats Bar */}
       <section className="stats-section fade-in">
         <div className="container stats-grid">
           {STATS.map((s) => (
             <div key={s.label} className="stat-item">
-              <span className="stat-icon">{s.icon}</span>
-              <span className="stat-value glow-text">{s.value}</span>
+              <span className="stat-value">{s.value}</span>
               <span className="stat-label">{s.label}</span>
             </div>
           ))}
@@ -238,58 +196,53 @@ export default function HomePage() {
       <div className="divider" />
 
       {/* Curriculum Overview */}
-      <section className="section weeks-section">
+      <section className="section">
         <div className="container">
           <div className="section-header fade-in">
-            <span className="tag tag-purple">The Curriculum</span>
-            <h2 className="section-title">
-              Four Weeks.
-              <br />
-              One Complete Engineer.
-            </h2>
+            <DecryptText
+              text="Four Weeks. One Complete Engineer."
+              as="h2"
+              className="section-title"
+              delay={100}
+              duration={1000}
+            />
             <p className="section-sub">
               Every week builds deliberately on the last — from encrypted
               primitives and control-flow patterns all the way to a
               production-grade payroll system deployed on Sepolia.
             </p>
           </div>
-
-          <div className="weeks-list">
+          <div className="weeks-grid">
             {WEEKS.map((w, i) => (
               <div
                 key={w.week}
-                className={`week-card glass-card fade-in week-${w.color}`}
-                style={{ animationDelay: `${i * 0.1}s` }}
+                className="card week-card fade-in"
+                style={{ transitionDelay: `${i * 80}ms` }}
               >
-                <div className="week-number">Week {w.week}</div>
-                <div className="week-body">
-                  <h3 className="week-title">{w.title}</h3>
-                  <p className="week-subtitle">{w.subtitle}</p>
-                  <p className="week-desc">{w.desc}</p>
-                  <ul className="week-topics">
-                    {w.topics.map((t) => (
-                      <li key={t}>
-                        <span className="checkmark">✓</span> {t}
-                      </li>
-                    ))}
-                  </ul>
+                <span className="week-number">{w.week}</span>
+                <h3 className="week-title">{w.title}</h3>
+                <p className="week-subtitle">{w.subtitle}</p>
+                <p className="week-desc">{w.desc}</p>
+                <div className="week-topics">
+                  {w.topics.map((t) => (
+                    <span key={t} className="tag">
+                      {t}
+                    </span>
+                  ))}
                 </div>
                 <div className="week-meta">
-                  <div className="week-hw">
+                  <div className="week-meta-item">
                     <span className="meta-label">Homework</span>
-                    <strong>{w.hw}</strong>
+                    <span className="meta-value">{w.hw}</span>
                   </div>
-                  <div className="week-time">
-                    <span className="meta-label">Time</span>
-                    <strong>{w.time}</strong>
+                  <div className="week-meta-item">
+                    <span className="meta-label">Est. Time</span>
+                    <span className="meta-value">{w.time}</span>
                   </div>
-                  <Link
-                    to="/curriculum"
-                    className={`btn-outline week-btn week-btn-${w.color}`}
-                  >
-                    View Lesson Plan →
-                  </Link>
                 </div>
+                <Link to="/curriculum" className="week-link">
+                  View Lessons &rarr;
+                </Link>
               </div>
             ))}
           </div>
@@ -298,167 +251,90 @@ export default function HomePage() {
 
       <div className="divider" />
 
-      {/* Who is this for */}
+      {/* Built For */}
       <section className="section">
         <div className="container">
           <div className="section-header fade-in">
-            <span className="tag tag-orange">Audience</span>
-            <h2 className="section-title">Built for Builders.</h2>
+            <DecryptText
+              text="Built For"
+              as="h2"
+              className="section-title"
+              delay={100}
+              duration={800}
+            />
             <p className="section-sub">
-              Whether you're a solo developer or a community educator running
+              Whether you are a solo developer or a community educator running
               workshops, the Blackbox Bootcamp scales to your context.
             </p>
           </div>
-          <div className="grid-3" style={{ marginTop: 40 }}>
-            {WHO.map((w) => (
-              <div key={w.role} className="glass-card who-card fade-in">
-                <div className="who-icon">{w.icon}</div>
-                <h3>{w.role}</h3>
-                <p>{w.desc}</p>
+          <div className="grid-3 built-for-grid">
+            {BUILT_FOR.map((item) => (
+              <div key={item.role} className="card built-card fade-in">
+                <h3>{item.role}</h3>
+                <p>{item.desc}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Prerequisites */}
-      <section className="section prereq-section">
-        <div className="container">
-          <div className="prereq-inner fade-in">
-            <div className="prereq-text">
-              <span className="tag tag-cyan">Prerequisites</span>
-              <h2 className="section-title" style={{ marginTop: 16 }}>
-                What You Need
-                <br />
-                to Get Started
-              </h2>
-              <p className="section-sub" style={{ marginTop: 16 }}>
-                We've designed an entry ramp that's genuinely accessible. Zero
-                background in cryptography or FHE theory is required — only
-                practical Solidity experience.
-              </p>
-              <Link
-                to="/curriculum"
-                className="btn-primary"
-                style={{ marginTop: 32 }}
-              >
-                Start Week 1 →
-              </Link>
-            </div>
-            <div className="prereq-list">
-              {PREREQS.map((p) => (
-                <div key={p.label} className="prereq-item glass-card">
-                  <span className="prereq-icon">{p.icon}</span>
-                  <span>{p.label}</span>
-                </div>
-              ))}
-              <div className="prereq-item prereq-bonus glass-card">
-                <span className="prereq-icon">🎯</span>
-                <span>Both cohort-based & self-paced learning supported</span>
-              </div>
-            </div>
           </div>
         </div>
       </section>
 
       <div className="divider" />
 
-      {/* Learning Outcomes */}
-      <section className="section outcomes-section">
+      {/* Prerequisites */}
+      <section className="section">
         <div className="container">
           <div className="section-header fade-in">
-            <span className="tag tag-purple">Outcomes</span>
-            <h2 className="section-title">What You'll Be Able to Build</h2>
+            <DecryptText
+              text="Prerequisites"
+              as="h2"
+              className="section-title"
+              delay={100}
+              duration={800}
+            />
           </div>
-          <div className="grid-2" style={{ marginTop: 44, gap: 20 }}>
-            {[
-              {
-                title: "Confidential ERC20 Tokens",
-                desc: "Tokens where balances and transfer amounts are fully hidden on-chain. Users can view only their own balance via re-encryption.",
-                icon: "🪙",
-                week: "Week 1",
-              },
-              {
-                title: "Dark Pool AMMs",
-                desc: "Automated market makers where trade size and slippage tolerance are never revealed, preventing front-running.",
-                icon: "🌀",
-                week: "Week 2",
-              },
-              {
-                title: "Blind Auction Systems",
-                desc: "Auctions where every bid is sealed on-chain. Only the winner is revealed post-auction — bids stay encrypted.",
-                icon: "🔏",
-                week: "Week 3",
-              },
-              {
-                title: "Confidential Payroll",
-                desc: "Employer-funded payroll where employee salaries are fully encrypted, yet contract solvency is provably maintained.",
-                icon: "💼",
-                week: "Week 4 Capstone",
-              },
-            ].map((o) => (
-              <div key={o.title} className="outcome-card glass-card fade-in">
-                <div className="outcome-header">
-                  <span className="outcome-icon">{o.icon}</span>
-                  <span className="tag tag-cyan" style={{ fontSize: 11 }}>
-                    {o.week}
-                  </span>
-                </div>
-                <h3>{o.title}</h3>
-                <p>{o.desc}</p>
+          <div className="prereq-list fade-in">
+            {PREREQS.map((p) => (
+              <div
+                key={p.label}
+                className={`prereq-item ${p.accent ? "prereq-accent" : ""}`}
+              >
+                <span className="prereq-check">{p.accent ? "+" : "/"}</span>
+                <span>{p.label}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="cta-section fade-in">
-        <div className="container">
-          <div className="cta-inner glass-card">
-            <div
-              className="orb"
-              style={{
-                width: 400,
-                height: 400,
-                background: "rgba(0,255,200,0.05)",
-                top: -100,
-                right: -100,
-                zIndex: 0,
-              }}
-            />
-            <h2
-              className="section-title"
-              style={{ position: "relative", zIndex: 1 }}
+      <div className="divider" />
+
+      {/* Final CTA */}
+      <section className="section cta-section fade-in">
+        <div className="container cta-inner">
+          <DecryptText
+            text="The infrastructure is here. Now we need the builders."
+            as="h2"
+            className="section-title"
+            delay={100}
+            duration={1200}
+          />
+          <p className="section-sub cta-sub">
+            Start your FHEVM journey today. Clone the Hardhat template, follow
+            the Week 1 lesson plan, and deploy your first confidential contract
+            in under an hour.
+          </p>
+          <div className="cta-actions">
+            <Link to="/curriculum" className="btn-primary">
+              Begin the Bootcamp &rarr;
+            </Link>
+            <a
+              href="https://github.com/zama-ai/fhevm-hardhat-template"
+              target="_blank"
+              rel="noreferrer"
+              className="btn-outline"
             >
-              The infrastructure is here.
-              <br />
-              <span className="glow-text">Now we need the builders.</span>
-            </h2>
-            <p
-              className="section-sub"
-              style={{ position: "relative", zIndex: 1 }}
-            >
-              Start your FHEVM journey today. Clone the Hardhat template, follow
-              the Week 1 lesson plan, and deploy your first confidential
-              contract in under an hour.
-            </p>
-            <div
-              className="cta-actions"
-              style={{ position: "relative", zIndex: 1 }}
-            >
-              <Link to="/curriculum" className="btn-primary">
-                Begin the Bootcamp →
-              </Link>
-              <a
-                href="https://github.com/zama-ai/fhevm-hardhat-template"
-                target="_blank"
-                rel="noreferrer"
-                className="btn-outline"
-              >
-                Clone Template on GitHub
-              </a>
-            </div>
+              Clone Template on GitHub
+            </a>
           </div>
         </div>
       </section>

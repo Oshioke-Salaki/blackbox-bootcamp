@@ -1,184 +1,401 @@
-/* Homework Page */
-.hw-page-header {
-  padding: 80px 0 0;
+/* ============================================
+   Homework Page — Test-Driven Specifications
+   ============================================ */
+
+/* Header */
+.hw-header-section {
+  padding: 80px 0 48px;
 }
-.hw-design-principles {
-  margin-top: 48px;
+.hw-header-section .section-sub {
+  max-width: 680px;
+  margin-top: 12px;
 }
-.hw-design-principles h3 {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 20px;
+
+/* Philosophy Cards */
+.hw-philosophy {
+  padding: 0 0 64px;
 }
-.principles-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-.principle-card {
+.philosophy-card {
+  border-left: 2px solid var(--accent);
+  text-align: left;
   padding: 24px;
-  text-align: center;
 }
-.principle-card span {
-  font-size: 28px;
-  display: block;
-  margin-bottom: 10px;
+.philosophy-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+  letter-spacing: 0.02em;
 }
-.principle-card h4 {
+.philosophy-card h4 {
   font-size: 15px;
   font-weight: 700;
   margin-bottom: 8px;
 }
-.principle-card p {
+.philosophy-card p {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.6;
 }
 
-/* Assignment cards */
-.hw-assignment {
-  padding: 60px 0;
+/* Assignments Section */
+.hw-assignments {
+  padding-bottom: 40px;
+  display: flex;
+  flex-direction: column;
 }
-.assignment-header {
-  margin-bottom: 32px;
+.hw-assignments .container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-.assignment-badge {
+
+/* Assignment Card */
+.assignment-card {
+  padding: 0;
+  overflow: hidden;
+  transition: border-color var(--duration) var(--ease);
+}
+.assignment-card:hover {
+  border-color: var(--border-hover);
+}
+.assignment-card--open {
+  border-color: var(--accent);
+}
+.assignment-card--open:hover {
+  border-color: var(--accent);
+}
+
+/* Toggle Button (collapsed header) */
+.assignment-card-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 24px 32px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  gap: 16px;
+  color: var(--text);
+  font-family: var(--font-body);
+  transition: background var(--duration) var(--ease);
+}
+.assignment-card-toggle:hover {
+  background: var(--surface-hover);
+}
+.assignment-card-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.assignment-week {
+  flex-shrink: 0;
+}
+.assignment-card-title {
+  font-size: clamp(16px, 2.5vw, 22px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.assignment-card-right {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.difficulty-badge,
-.time-badge {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--surface-2);
-  padding: 4px 10px;
-  border-radius: 100px;
-  border: 1px solid var(--border);
-}
-.assignment-title {
-  font-size: clamp(22px, 4vw, 32px);
-  font-weight: 800;
-  margin-bottom: 6px;
-}
-.assignment-subtitle {
-  font-size: 15px;
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-}
-.concept-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.concept-tag {
-  font-size: 12px;
-  font-family: var(--font-mono);
-  padding: 4px 12px;
-  background: var(--surface-3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--cyan);
+  flex-shrink: 0;
 }
 
-.assignment-section {
-  margin-bottom: 28px;
+/* Difficulty Badge */
+.diff-badge {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
-.assignment-section h3 {
-  font-size: 17px;
-  font-weight: 700;
-  margin-bottom: 14px;
+.diff-beginner {
+  color: var(--success);
+  border-color: var(--success);
+}
+.diff-intermediate {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.diff-advanced {
+  color: var(--text);
+  border-color: var(--text);
+}
+.diff-expert {
+  color: var(--error);
+  border-color: var(--error);
+}
+
+/* Time Badge */
+.time-badge {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+}
+
+/* Toggle Icon */
+.toggle-icon {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  color: var(--accent);
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
 }
-.scenario-text {
+
+/* Concept Tags (below toggle) */
+.assignment-card-concepts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 32px 20px;
+}
+.concept-tag {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+/* Expanded Body */
+.assignment-card-body {
+  padding: 0 32px 32px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 28px;
+}
+
+/* Section headings inside expanded */
+.hw-section {
+  margin-bottom: 32px;
+}
+.hw-section:last-child {
+  margin-bottom: 0;
+}
+.hw-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+/* Scenario */
+.hw-scenario {
   font-size: 15px;
   color: var(--text-secondary);
   line-height: 1.75;
-  max-width: 800px;
-  background: var(--surface-2);
   padding: 20px 24px;
-  border-left: 3px solid var(--purple);
-  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface);
+  border-left: 2px solid var(--accent);
 }
 
-.deliverables-list {
+/* Deliverables */
+.hw-deliverables {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
-.deliverables-list li {
+.hw-deliverables li {
   display: flex;
   align-items: center;
   gap: 10px;
   font-size: 14px;
-  font-family: var(--font-mono);
 }
-.del-dot {
-  font-size: 10px;
+.hw-deliverables code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+}
+.hw-arrow {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
   flex-shrink: 0;
 }
 
-.spec-list {
+/* Spec List */
+.hw-spec-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
-.spec-list li {
+.hw-spec-list li {
   font-size: 14px;
   line-height: 1.6;
   color: var(--text-secondary);
-  padding-left: 8px;
-}
-
-.assignment-tip {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
-  padding: 20px 24px;
-  background: rgba(0, 255, 200, 0.06);
-  border: 1px solid rgba(0, 255, 200, 0.15);
-  border-radius: var(--radius);
-  margin-top: 24px;
+  gap: 10px;
 }
-.tip-icon {
-  font-size: 22px;
+.hw-check {
+  color: var(--accent);
+  font-size: 13px;
   flex-shrink: 0;
+  margin-top: 2px;
 }
-.assignment-tip strong {
+
+/* Starter Code section */
+.hw-starter-code .codeblock-wrapper {
+  margin-top: 0;
+}
+.hw-starter-code .codeblock-header {
+  border-color: var(--accent);
+  border-width: 1px;
+}
+.hw-starter-code .code-block {
+  border-color: rgba(200, 165, 90, 0.25);
+}
+
+/* Grading Rubric Table */
+.hw-table-wrap {
+  overflow-x: auto;
+}
+.hw-rubric-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.hw-rubric-table th {
+  padding: 10px 16px;
+  font-size: 0.7rem;
+}
+.hw-rubric-table td {
+  padding: 10px 16px;
+}
+.hw-points {
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+.hw-level {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid var(--border);
+}
+.level-pass {
+  color: var(--success);
+  border-color: var(--success);
+}
+.level-excellent {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.level-security {
+  color: var(--error);
+  border-color: var(--error);
+}
+.level-audit {
+  color: var(--error);
+  border-color: var(--error);
+}
+.level-optimization {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.level-tests {
+  color: var(--text-secondary);
+  border-color: var(--text-secondary);
+}
+.level-deployment {
+  color: var(--text-secondary);
+  border-color: var(--text-secondary);
+}
+.hw-total-row td {
+  border-top: 1px solid var(--accent);
+  border-bottom: none;
+}
+
+/* Pro Tip Callout */
+.hw-pro-tip {
+  padding: 20px 24px;
+  background: var(--accent-dim);
+  border-left: 2px solid var(--accent);
+  margin-top: 28px;
+}
+.hw-pro-tip strong {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  color: var(--cyan);
-  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 6px;
 }
-.assignment-tip p {
+.hw-pro-tip p {
   font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.65;
 }
 
+/* Footer CTA */
 .hw-footer-cta {
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  padding: 40px 0;
+  padding: 48px 0 64px;
   flex-wrap: wrap;
 }
 
-@media (max-width: 900px) {
-  .principles-grid {
-    grid-template-columns: 1fr 1fr;
+/* Responsive */
+@media (max-width: 1024px) {
+  .hw-philosophy .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
-@media (max-width: 600px) {
-  .principles-grid {
+
+@media (max-width: 768px) {
+  .assignment-card-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px 20px;
+  }
+  .assignment-card-right {
+    flex-wrap: wrap;
+  }
+  .assignment-card-concepts {
+    padding: 0 20px 16px;
+  }
+  .assignment-card-body {
+    padding: 0 20px 24px;
+    padding-top: 24px;
+  }
+  .hw-philosophy .grid-4 {
     grid-template-columns: 1fr;
+  }
+  .hw-footer-cta {
+    justify-content: center;
   }
 }

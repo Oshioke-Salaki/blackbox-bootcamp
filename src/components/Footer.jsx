@@ -1,82 +1,54 @@
 import { Link } from "react-router-dom";
+import { useProgress } from "./ProgressContext";
 import "./Footer.css";
 
 export default function Footer() {
+  const { resetProgress } = useProgress();
+
   return (
     <footer className="footer">
-      <div className="container footer-inner">
-        <div className="footer-brand">
-          <span className="footer-logo">
-            <span
-              style={{
-                color: "var(--cyan)",
-                filter: "drop-shadow(0 0 6px var(--cyan))",
-              }}
-            >
-              ⬡
-            </span>{" "}
-            FHEVM <span className="glow-text">Blackbox</span> Bootcamp
-          </span>
-          <p>Build in the Dark. Execute in the Light.</p>
-          <p className="footer-tagline">
-            A production-ready 4-week curriculum for confidential dApp
-            development on the Zama Protocol.
-          </p>
+      <div className="container">
+        <div className="footer-grid">
+          <div className="footer-brand">
+            <div className="footer-logo">
+              <span className="brand-mark">BX</span>
+              <span className="brand-text">Blackbox Bootcamp</span>
+            </div>
+            <p>
+              The definitive 4-week program for building confidential smart
+              contracts on Zama's FHEVM.
+            </p>
+          </div>
+
+          <div className="footer-col">
+            <h4>Curriculum</h4>
+            <Link to="/curriculum">Week 1 — FHE Paradigm</Link>
+            <Link to="/curriculum">Week 2 — Encrypted Logic</Link>
+            <Link to="/curriculum">Week 3 — Access Control</Link>
+            <Link to="/curriculum">Week 4 — Capstone</Link>
+          </div>
+
+          <div className="footer-col">
+            <h4>Resources</h4>
+            <Link to="/homework">Homework Specs</Link>
+            <Link to="/resources">Instructor Guide</Link>
+            <Link to="/resources">Video Script</Link>
+            <a href="https://docs.zama.ai/fhevm" target="_blank" rel="noreferrer">Zama Docs</a>
+          </div>
+
+          <div className="footer-col">
+            <h4>Community</h4>
+            <a href="https://github.com/zama-ai/fhevm-hardhat-template" target="_blank" rel="noreferrer">GitHub Template</a>
+            <a href="https://discord.gg/zama" target="_blank" rel="noreferrer">Discord</a>
+            <a href="https://twitter.com/zaboris" target="_blank" rel="noreferrer">Twitter</a>
+          </div>
         </div>
 
-        <div className="footer-links-group">
-          <span className="footer-label">Curriculum</span>
-          <Link to="/curriculum">All 4 Weeks</Link>
-          <Link to="/curriculum#week1">Week 1 – Fundamentals</Link>
-          <Link to="/curriculum#week2">Week 2 – Advanced Logic</Link>
-          <Link to="/curriculum#week3">Week 3 – dApp Frontend</Link>
-          <Link to="/curriculum#week4">Week 4 – Capstone</Link>
-        </div>
-
-        <div className="footer-links-group">
-          <span className="footer-label">Resources</span>
-          <Link to="/homework">Homework Specs</Link>
-          <Link to="/instructor">Instructor Hub</Link>
-          <Link to="/video-script">Video Script</Link>
-          <a href="https://docs.zama.ai/fhevm" target="_blank" rel="noreferrer">
-            Zama Docs ↗
-          </a>
-          <a
-            href="https://github.com/zama-ai/fhevm-hardhat-template"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Hardhat Template ↗
-          </a>
-        </div>
-
-        <div className="footer-links-group">
-          <span className="footer-label">Community</span>
-          <a href="https://discord.gg/zama" target="_blank" rel="noreferrer">
-            Discord ↗
-          </a>
-          <a
-            href="https://twitter.com/zama_fhe"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Twitter / X ↗
-          </a>
-          <a href="https://github.com/zama-ai" target="_blank" rel="noreferrer">
-            GitHub ↗
-          </a>
-          <a href="https://www.zama.ai/blog" target="_blank" rel="noreferrer">
-            Blog ↗
-          </a>
-        </div>
-      </div>
-
-      <div className="footer-bottom">
-        <div className="container footer-bottom-inner">
-          <span>© 2026 FHEVM Blackbox Bootcamp. Powered by Zama Protocol.</span>
-          <span className="footer-credits">
-            Designed for the Zama Developer Bootcamp Challenge
-          </span>
+        <div className="footer-bottom">
+          <span>FHEVM Blackbox Bootcamp. Built for the Zama Protocol.</span>
+          <button className="footer-reset" onClick={resetProgress}>
+            Reset Progress
+          </button>
         </div>
       </div>
     </footer>

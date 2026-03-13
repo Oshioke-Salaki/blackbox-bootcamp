@@ -1,71 +1,75 @@
-import { useState, useEffect } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useProgress } from "./ProgressContext";
 import "./Navbar.css";
 
 const NAV_LINKS = [
   { to: "/", label: "Home" },
   { to: "/curriculum", label: "Curriculum" },
   { to: "/homework", label: "Homework" },
-  { to: "/instructor", label: "Instructor Hub" },
-  { to: "/video-script", label: "Video Script" },
+  { to: "/resources", label: "Resources" },
+];
+
+const WEEK_STRUCTURE = [
+  { id: "week1", lessons: 4 },
+  { id: "week2", lessons: 3 },
+  { id: "week3", lessons: 3 },
+  { id: "week4", lessons: 3 },
 ];
 
 export default function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handler);
-    return () => window.removeEventListener("scroll", handler);
-  }, []);
+  const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  const { getTotalProgress } = useProgress();
+  const { percent } = getTotalProgress(WEEK_STRUCTURE);
 
   return (
-    <nav className={`navbar${scrolled ? " scrolled" : ""}`}>
-      <div className="nav-inner">
-        <Link to="/" className="nav-logo">
-          <span className="nav-logo-icon">⬡</span>
-          <span>
-            <span className="glow-text">Blackbox</span>
-            <span className="nav-logo-sub"> Bootcamp</span>
-          </span>
+    <nav className="navbar">
+      <div className="navbar-inner">
+        <Link to="/" className="navbar-brand">
+          <span className="brand-mark">BX</span>
+          <span className="brand-text">Blackbox</span>
         </Link>
 
-        <ul className={`nav-links${menuOpen ? " open" : ""}`}>
-          {NAV_LINKS.map(({ to, label }) => (
-            <li key={to}>
-              <NavLink
-                to={to}
-                end={to === "/"}
-                className={({ isActive }) =>
-                  isActive ? "nav-link active" : "nav-link"
-                }
-                onClick={() => setMenuOpen(false)}
-              >
-                {label}
-              </NavLink>
-            </li>
+        <div className={`navbar-links${open ? " open" : ""}`}>
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              className={`nav-link${pathname === link.to ? " active" : ""}`}
+              onClick={() => setOpen(false)}
+            >
+              {link.label}
+              {pathname === link.to && <span className="nav-dot" />}
+            </Link>
           ))}
-        </ul>
+        </div>
 
-        <a
-          href="https://github.com/zama-ai/fhevm-hardhat-template"
-          target="_blank"
-          rel="noreferrer"
-          className="nav-cta btn-primary"
-        >
-          Start Building →
-        </a>
-
-        <button
-          className={`hamburger${menuOpen ? " open" : ""}`}
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          <span />
-          <span />
-          <span />
-        </button>
+        <div className="navbar-right">
+          {percent > 0 && (
+            <div className="nav-progress" title={`${percent}% complete`}>
+              <div className="nav-progress-bar">
+                <div className="nav-progress-fill" style={{ width: `${percent}%` }} />
+              </div>
+              <span className="nav-progress-label">{percent}%</span>
+            </div>
+          )}
+          <a
+            href="https://github.com/zama-ai/fhevm-hardhat-template"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-primary nav-cta"
+          >
+            Start Building
+          </a>
+          <button
+            className={`hamburger${open ? " open" : ""}`}
+            onClick={() => setOpen(!open)}
+            aria-label="Menu"
+          >
+            <span /><span /><span />
+          </button>
+        </div>
       </div>
     </nav>
   );

@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
+import { useState, useEffect, useRef, useCallback } from "react";
+import DecryptText from "../components/DecryptText";
+import CodeBlock from "../components/CodeBlock";
+import Quiz from "../components/Quiz";
+import { useProgress } from "../components/ProgressContext";
 import "./CurriculumPage.css";
 
+/* ─── fade-in hook ─── */
 function useFadeIn(dep) {
   const ref = useRef(null);
   useEffect(() => {
@@ -14,1103 +17,994 @@ function useFadeIn(dep) {
             observer.unobserve(e.target);
           }
         }),
-      { threshold: 0.08 },
+      { threshold: 0.08 }
     );
-    const elements = ref.current?.querySelectorAll(".fade-in") || [];
-    elements.forEach((el) => observer.observe(el));
+    const els = ref.current?.querySelectorAll(".fade-in") || [];
+    els.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, [dep]);
   return ref;
 }
 
-const WEEKS_DATA = [
+/* ─── SVG progress circle ─── */
+function ProgressCircle({ percent, size = 36, stroke = 3 }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (percent / 100) * circ;
+  return (
+    <svg width={size} height={size} className="progress-circle">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="var(--border)"
+        strokeWidth={stroke}
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke={percent === 100 ? "var(--success)" : "var(--accent)"}
+        strokeWidth={stroke}
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        strokeLinecap="butt"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{ transition: "stroke-dashoffset 0.4s ease" }}
+      />
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CURRICULUM DATA
+   ═══════════════════════════════════════════════════════════ */
+
+const WEEKS_META = [
+  { id: "week1", lessons: 4 },
+  { id: "week2", lessons: 3 },
+  { id: "week3", lessons: 3 },
+  { id: "week4", lessons: 3 },
+];
+
+const WEEKS = [
+  /* ──────────── WEEK 1 ──────────── */
   {
     id: "week1",
-    number: "01",
-    color: "cyan",
+    number: 1,
     title: "The FHE Paradigm Shift",
-    tagline: "Environment Setup & Encrypted Types",
-    overview: `Week 1 begins with the most important conceptual shift in this bootcamp: understanding that Fully Homomorphic Encryption doesn't just hide data at rest — it allows the network to compute on encrypted data without ever decrypting it. This is fundamentally different from ZK proofs (which prove you know something) and from traditional encryption (which can't be computed on). Once this mental model clicks, everything else follows naturally.`,
-    objectives: [
-      "Explain the difference between FHE, ZK proofs, and traditional encryption",
-      "Set up the Zama fhEVM Hardhat development environment and inherit ZamaEthereumConfig",
-      "Understand and use the core encrypted types: euint8, euint16, euint32, euint64, euint128, euint256, ebool, eaddress",
-      "Write your first confidential smart contract that hides token balances",
-      'Understand and implement the "No Revert" rule using FHE.select',
-      "Use isInitialized() to safely validate encrypted variable state",
-      "Run the mock FHE environment for fast local testing",
-    ],
+    subtitle: "Environment Setup & Encrypted Types",
     lessons: [
       {
+        id: "week1-lesson-1",
         num: "1.1",
-        title: "The FHE Coprocessor Paradigm",
-        time: "55 min",
-        desc: `Stop thinking of the EVM as a general-purpose CPU. In FHEVM, think of the EVM as a "Host" that delegates hard crypto math to a "Coprocessor" (The Gateway). 
+        title: "The FHE Mental Model",
+        objectives: [
+          "Explain how FHE differs from ZK proofs and traditional encryption",
+          "Understand the coprocessor architecture",
+          "Describe why on-chain computation on encrypted data is possible",
+        ],
+        content:
+          "Fully Homomorphic Encryption allows computation on encrypted data without ever decrypting it. This is a fundamentally different paradigm from anything else in the blockchain space. Traditional encryption (AES, RSA) lets you store and transmit secrets, but to do anything useful you must decrypt first — exposing the plaintext. ZK proofs let you prove you know something (a password, a Merkle path, a valid state transition) without revealing it, but they don't let the verifier compute on the hidden data. FHE does both: data stays encrypted, and the network can add, subtract, compare, and select on those ciphertexts. The Zama coprocessor handles the heavy cryptographic operations off-chain while the results are verified on-chain. Your contract inherits ZamaEthereumConfig, which wires the FHE coprocessor connection — a single line of inheritance that makes FHE.add(), FHE.sub(), FHE.select(), and all other operations available to your contract.",
+        insight:
+          "FHE doesn't hide the computation — it hides the data. The function is public, the inputs are private. This is the inverse of ZK proofs.",
+        code: `<span class="cm">// The one line that wires the FHE coprocessor</span>
+<span class="kw">import</span> <span class="str">"fhevm/config/ZamaEthereumConfig.sol"</span>;
 
-### How it Works:
-1. **The Handle**: When you work with a 'euint64', you aren't holding a number; you're holding a **pointer** (a handle) to a ciphertext stored in the Coprocessor's memory.
-2. **The Execution**: You tell the Coprocessor: "Add handle A and handle B." It performs the math in its secure environment and returns a **NEW handle C**.
-3. **The Result**: The EVM only sees A, B, and C. They are just opaque hex strings to the EVM. It can move them, store them, or send them—but it can NEVER look inside them.`,
-        notes: `Instructor: This is the most important mental model shift. Use an analogy: It's like a blind accountant. You (the EVM) give them two sealed envelopes (handles), they do the math without opening them, and give you back a third sealed envelope (the result). You know the envelopes contain data, but you never see the numbers.
-
-**Key Learning Objective**: By the end of this lesson, students should be able to explain why 'euint64' is technically a bytes32 pointer and why 'msg.sender' is the only thing the EVM actually "knows" for sure.`,
+<span class="kw">contract</span> <span class="ty">MyFirstFHE</span> <span class="kw">is</span> <span class="ty">ZamaEthereumConfig</span> {
+  <span class="cm">// FHE.add(), FHE.sub(), FHE.select() are now available</span>
+  <span class="cm">// The coprocessor handles all crypto operations</span>
+}`,
+        codeFilename: "MyFirstFHE.sol",
+        quiz: [
+          {
+            question: "What makes FHE different from traditional encryption?",
+            options: [
+              "It uses smaller keys",
+              "It only works on integers",
+              "It allows computation on encrypted data without decryption",
+              "It's faster than AES",
+            ],
+            correct: 2,
+            explanation:
+              "Traditional encryption requires decryption before any computation. FHE allows add, multiply, compare, and select operations directly on ciphertexts.",
+          },
+          {
+            question: "What does ZamaEthereumConfig do?",
+            options: [
+              "Configures the FHE coprocessor connection",
+              "Creates encrypted storage automatically",
+              "Sets up gas limits for FHE operations",
+              "Enables ZK proofs on the contract",
+            ],
+            correct: 0,
+            explanation:
+              "ZamaEthereumConfig is a single-line inheritance that wires your contract to the Zama FHE coprocessor, making all FHE operations available.",
+          },
+        ],
       },
       {
+        id: "week1-lesson-2",
         num: "1.2",
-        title: "Encrypted Primitives & Lifecycle",
-        time: "60 min",
-        desc: `Every confidential variable goes through a rigorous lifecycle. You cannot just "make a number private."
+        title: "Encrypted Types & Storage",
+        objectives: [
+          "Use euint8, euint16, euint32, euint64, euint128, euint256, ebool, eaddress",
+          "Store encrypted values in contract state",
+          "Convert between plaintext and encrypted types",
+        ],
+        content:
+          "The FHEVM encrypted type system mirrors Solidity's integer types but operates entirely on ciphertexts. The most commonly used type is euint64 — an encrypted 64-bit unsigned integer. The EVM never sees the plaintext value; it only handles ciphertext handles, which are opaque references to data that lives in the coprocessor. To store an encrypted value, declare it as a state variable or mapping just like you would with a regular uint — but use the encrypted type instead. To create an encrypted value from plaintext (typically for admin initialization), call FHE.asEuint64(). To accept user-submitted encrypted values, use the externalEuint64 parameter type in your function signature combined with FHE.fromExternal() for validation. The fromExternal call validates a ZK proof that the ciphertext is well-formed and within the expected bit range.",
+        insight:
+          "Think of encrypted types as opaque handles. The EVM stores and passes them around, but never sees what's inside. Only the coprocessor can compute on them.",
+        code: `<span class="cm">// Encrypted state — the EVM never sees plaintext values</span>
+<span class="ty">mapping</span>(<span class="ty">address</span> => <span class="ty">euint64</span>) <span class="kw">private</span> balances;
+<span class="ty">ebool</span> <span class="kw">private</span> isActive;
+<span class="ty">eaddress</span> <span class="kw">private</span> winner;
 
-### The Three States of Data:
-1. **Plaintext (uint64)**: Visible to everyone. Used for non-sensitive data (timestamps, ID numbers).
-2. **External Ciphertext (externalEuint64)**: Data incoming from a user. It comes with a **ZK-Proof** that proves the user knows the number and it's within bounds (e.g., fits in 64 bits).
-3. **Internal Handle (euint64)**: Validated data ready for math.
+<span class="cm">// Admin sets a value from plaintext</span>
+balances[user] = FHE.<span class="fn">asEuint64</span>(<span class="num">1000</span>);
 
-### Implementation Checklist:
-- [ ] Must inherit 'ZamaEthereumConfig' (Initializes the coprocessor link).
-- [ ] Use 'FHE.fromExternal(input, proof)' to bridge from User to Contract.
-- [ ] Use 'FHE.allowThis(handle)' to grant the contract permission to use the handle in the next transaction.
-- [ ] Use 'FHE.isInitialized(handle)' to prevent null-pointer errors in crypto math.`,
-        code: `import "@fhevm/solidity/lib/FHE.sol";
-import "@fhevm/solidity/config/ZamaEthereumConfig.sol";
-
-contract DeepDive is ZamaEthereumConfig {
-    euint64 private _secretVal;
-
-    // STEP 1: Accepts ENCRYPTED input from user
-    function secureInit(externalEuint64 encVal, bytes calldata proof) external {
-        // STEP 2: Validation (ZK-Proof Check)
-        // returns a handles (pointer) if proof is valid, else reverts
-        euint64 validatedHandle = FHE.fromExternal(encVal, proof);
-
-        // STEP 3: Initializing state
-        // Always check if it's the first time
-        if (!FHE.isInitialized(_secretVal)) {
-            _secretVal = validatedHandle;
-        } else {
-             _secretVal = FHE.add(_secretVal, validatedHandle);
-        }
-
-        // STEP 4: ACL (Granting Permissions)
-        // Without this, the contract can't use _secretVal in the NEXT call
-        FHE.allowThis(_secretVal);
-        
-        // Grant sender the right to "view" their own encrypted state later
-        FHE.allow(_secretVal, msg.sender);
-    }
+<span class="cm">// User submits encrypted value</span>
+<span class="kw">function</span> <span class="fn">deposit</span>(<span class="ty">externalEuint64</span> encAmount, <span class="ty">bytes</span> <span class="kw">calldata</span> proof) <span class="kw">external</span> {
+  <span class="ty">euint64</span> amount = FHE.<span class="fn">fromExternal</span>(encAmount, proof);
+  balances[msg.sender] = FHE.<span class="fn">add</span>(balances[msg.sender], amount);
+  FHE.<span class="fn">allowThis</span>(balances[msg.sender]);
+  FHE.<span class="fn">allow</span>(balances[msg.sender], msg.sender);
 }`,
-        notes: `Instructor: Focus on the "Double-Spend of Permissions". Students often think FHE.allow() is like a database permission. It's not. It's a cryptographic grant. 
-
-Explain that every time _secretVal is updated (mutated), it gets a **NEW handle ID**. The old permission for the old ID is now useless. You MUST call FHE.allowThis() again after every update. No re-grant = silent failure.`,
+        codeFilename: "EncryptedStorage.sol",
+        quiz: [
+          {
+            question: "How do you accept an encrypted value from a user?",
+            options: [
+              "Call FHE.encrypt() on a uint256",
+              "Use bytes32 as a ciphertext container",
+              "Use uint256 and encrypt it on-chain",
+              "Use externalEuint64 with FHE.fromExternal()",
+            ],
+            correct: 3,
+            explanation:
+              "Users submit encrypted values as externalEuint64 with a ZK proof. The contract validates with FHE.fromExternal(encAmount, proof).",
+          },
+          {
+            question: "What happens when you store a euint64 in a mapping?",
+            options: [
+              "The mapping is encrypted entirely",
+              "The plaintext value is stored on-chain",
+              "A ciphertext handle is stored — the EVM never sees the value",
+              "The value is hashed before storage",
+            ],
+            correct: 2,
+            explanation:
+              "euint64 is a ciphertext handle. The actual encrypted data lives in the coprocessor; the EVM only stores and manipulates handles.",
+          },
+        ],
       },
       {
+        id: "week1-lesson-3",
         num: "1.3",
-        title: "Programming Without Branches (FHE.select)",
-        time: "60 min",
-        desc: `The "No Revert" rule is the hardest bridge to cross. In Solidity, you write 'if (x > y) revert()'. In FHEVM, you cannot do this.
+        title: "FHE.select — The No-Revert Pattern",
+        objectives: [
+          "Understand why require() leaks information",
+          "Implement the FHE.select pattern for conditional logic",
+          "Apply the no-revert rule to transfers",
+        ],
+        content:
+          "In standard Solidity, require(balance >= amount) reverts on failure — but that revert tells an observer \"the balance was below this amount.\" Information leaked. In FHEVM, you cannot branch on encrypted data at all because ebool is not a Solidity bool — the EVM literally cannot evaluate it. Instead, use FHE.select(condition, valueIfTrue, valueIfFalse). Both branches are always computed, but only one result is selected and stored. The gas cost is identical regardless of which branch is taken. An observer sees a successful transaction either way and learns absolutely nothing about the encrypted values involved. This is the single most important pattern in FHEVM development: replace every require, if, and revert that touches encrypted data with FHE.select.",
+        insight:
+          "Every conditional in FHE becomes a mask. Both paths execute. Only one result is stored. This is the single most important pattern in FHEVM development.",
+        code: `<span class="cm">// WRONG: This leaks information via revert</span>
+<span class="kw">require</span>(balances[msg.sender] >= amount, <span class="str">"Insufficient"</span>);
+balances[msg.sender] -= amount;
 
-### Why? 
-Because 'x > y' returns an 'ebool'. An 'ebool' is just another sealed envelope. The EVM cannot "open" the envelope to decide whether to revert. If you forced a revert based on an ebool, the miner would have to know the value, which breaks all privacy.
-
-### The Solution: Deterministic State Updates
-We update the state regardless, but we use 'FHE.select' to decide **which** value to store:
-- If 'condition' is true -> store 'CalculatedNewValue'
-- If 'condition' is false -> store 'OriginalOldValue' (effectively a no-op)
-
-The gas cost is the same for both paths. Privacy is preserved perfectly.`,
-        code: `function privateTransfer(address to, externalEuint64 encAmount, bytes calldata proof) external {
-    euint64 amount = FHE.fromExternal(encAmount, proof);
-    
-    // Returns an encrypted boolean handle (the envelope)
-    ebool hasFunds = FHE.le(amount, _balances[msg.sender]);
-
-    // Update Sender: 
-    // If hasFunds is true  -> _balances - amount
-    // If hasFunds is false -> _balances (no change)
-    _balances[msg.sender] = FHE.select(
-        hasFunds, 
-        FHE.sub(_balances[msg.sender], amount), 
-        _balances[msg.sender]
-    );
-
-    // Update Recipient:
-    _balances[to] = FHE.select(
-        hasFunds, 
-        FHE.add(_balances[to], amount), 
-        _balances[to]
-    );
-
-    // MASTER RULE: Re-grant ACL after EVERY update
-    FHE.allowThis(_balances[msg.sender]);
-    FHE.allowThis(_balances[to]);
-    
-    // We also grant the users access to view their new balances
-    FHE.allow(_balances[msg.sender], msg.sender);
-    FHE.allow(_balances[to], to);
-}`,
-        notes: `Instructor: This is a "Step-by-Step" live coding exercise. Write the "Standard Solidity" version with reverts first, then "Refactor" it live into the FHE.select pattern. Show the students that 'transfer' now NEVER fails. Not enough funds? The transaction succeeds, but the balance doesn't move. 
-
-**Student Challenge**: Ask them how they would inform the user the transfer "failed" if the transaction succeeded. (Answer: They check their balance off-chain and see it didn't change).`,
+<span class="cm">// CORRECT: FHE.select — no information leaks</span>
+<span class="ty">ebool</span> canTransfer = FHE.<span class="fn">le</span>(amount, balances[msg.sender]);
+balances[msg.sender] = FHE.<span class="fn">select</span>(
+  canTransfer,
+  FHE.<span class="fn">sub</span>(balances[msg.sender], amount),
+  balances[msg.sender]  <span class="cm">// unchanged if insufficient</span>
+);
+<span class="cm">// Transaction always succeeds. Observer learns nothing.</span>`,
+        codeFilename: "NoRevertPattern.sol",
+        quiz: [
+          {
+            question:
+              "Why can't you use require() with encrypted values?",
+            options: [
+              "require() is disabled in FHEVM contracts",
+              "It uses too much gas on encrypted data",
+              "It's too slow for production use",
+              "ebool is not a Solidity bool — the EVM can't branch on encrypted data",
+            ],
+            correct: 3,
+            explanation:
+              "ebool is a ciphertext handle, not a boolean. The EVM literally cannot evaluate it. Even if it could, the revert/success would leak information about the encrypted value.",
+          },
+          {
+            question:
+              "In FHE.select(condition, a, b), how many values are computed?",
+            options: [
+              "Only the selected one",
+              "Both a and b are always computed",
+              "It depends on the condition",
+              "Neither — it's lazy evaluated",
+            ],
+            correct: 1,
+            explanation:
+              "Both branches are always computed. The coprocessor selects which result to store based on the encrypted condition. This is why gas cost is constant regardless of the outcome.",
+          },
+        ],
       },
       {
+        id: "week1-lesson-4",
         num: "1.4",
-        title: "Hardhat + fhEVM Mock Environment Setup",
-        time: "45 min",
-        desc: "Step-by-step environment configuration. Students clone the official Zama Hardhat template, configure the mocked FHE library (which allows instant local testing without the coprocessor), and run their first test against a simple counter contract.",
-        code: `# 1. Clone the official Zama FHEVM Hardhat template
-git clone https://github.com/zama-ai/fhevm-hardhat-template.git
-cd fhevm-hardhat-template && npm install
+        title: "ACL — FHE.allow & FHE.allowThis",
+        objectives: [
+          "Understand the FHE Access Control List system",
+          "Call FHE.allow() and FHE.allowThis() correctly",
+          "Avoid the #1 bug: stale ACL permissions after mutation",
+        ],
+        content:
+          "Every encrypted ciphertext has an Access Control List. By default, only the contract that created it can access it. FHE.allowThis(handle) grants the current contract permission to use the handle in future transactions. FHE.allow(handle, address) grants a specific user permission — necessary if that user needs to decrypt the value later. The critical concept: every FHE operation (add, sub, mul, select) creates a NEW ciphertext handle. The old handle's permissions do not carry over to the new one. You must re-grant permissions after every mutation. This is the number one source of bugs in FHEVM development. Forgetting to call allowThis after an FHE operation means the contract loses access to its own data in the next transaction. Forgetting to call allow for the user means they can never decrypt their own balance.",
+        insight:
+          "FHE operations create new handles. The old permissions die with the old handle. This is the #1 source of bugs in FHEVM development.",
+        code: `<span class="cm">// After EVERY FHE mutation, re-grant permissions</span>
+balances[user] = FHE.<span class="fn">add</span>(balances[user], amount);
 
-# 2. Run the pre-built tests (mock FHE mode — instant, no coprocessor)
-npx hardhat test
+<span class="cm">// The add() created a NEW handle — old ACL is gone</span>
+FHE.<span class="fn">allowThis</span>(balances[user]);     <span class="cm">// contract can use it</span>
+FHE.<span class="fn">allow</span>(balances[user], user);    <span class="cm">// user can decrypt it</span>
 
-# 3. For Sepolia: set Hardhat configuration variables
-npx hardhat vars set MNEMONIC        # 12-word wallet seed phrase
-npx hardhat vars set INFURA_API_KEY  # from Infura dashboard
-
-# 4. Deploy to Sepolia (fhEVM host chain — chainId 11155111)
-npx hardhat deploy --network sepolia
-
-# Every contract must inherit ZamaEthereumConfig:
-# import "@fhevm/solidity/config/ZamaEthereumConfig.sol";
-# contract MyContract is ZamaEthereumConfig { ... }`,
-        notes:
-          "Instructor: Allocate 20 extra minutes for setup issues. Common blockers: (1) Node.js odd version — use v18.x or v20.x only; Hardhat doesn't support v21/v23. (2) Missing MNEMONIC or INFURA_API_KEY — use 'npx hardhat vars set' not .env files. (3) Forgetting the ZamaEthereumConfig inheritance — silent failures on testnet result.",
+<span class="cm">// WRONG: Forgetting allow after mutation</span>
+<span class="cm">// balances[user] = FHE.sub(balances[user], fee);</span>
+<span class="cm">// No allow calls — the next operation will fail silently</span>`,
+        codeFilename: "ACLPattern.sol",
+        quiz: [
+          {
+            question:
+              "When must you call FHE.allow() and FHE.allowThis()?",
+            options: [
+              "Only for ebool types that need decryption",
+              "Only once during contract deployment",
+              "Only when transferring handles to other contracts",
+              "After every FHE operation that creates a new handle",
+            ],
+            correct: 3,
+            explanation:
+              "Every FHE operation (add, sub, mul, select) creates a new ciphertext handle. The new handle has no ACL permissions — you must explicitly grant them again.",
+          },
+        ],
       },
     ],
-    homework: {
-      title: "Confidential ERC20 Token (ConfToken)",
-      level: "Pass / Excellent",
-      time: "3–5 hours",
-      desc: "Modify a standard ERC20 to use encrypted balances and encrypted transfer amounts. Implement the full transfer lifecycle without any state-leaking reverts.",
-      starter:
-        "https://github.com/zama-ai/fhevm-hardhat-template/tree/main/contracts",
-      grading: [
-        {
-          criterion: "Compiles without errors using fhEVM library",
-          points: 15,
-          level: "Pass",
-        },
-        {
-          criterion: "All plaintext `uint256` balances replaced with `euint64`",
-          points: 15,
-          level: "Pass",
-        },
-        {
-          criterion: "transfer() uses FHE.select — no reverts on low balance",
-          points: 20,
-          level: "Pass",
-        },
-        {
-          criterion: "Hardhat tests pass: deposit, transfer, balance check",
-          points: 20,
-          level: "Pass",
-        },
-        {
-          criterion:
-            "transferFrom() correctly handles allowances in encrypted form",
-          points: 15,
-          level: "Excellent",
-        },
-        {
-          criterion:
-            "FHE.allow() / FHE.allowThis() grants correct ACL permissions to sender and recipient",
-          points: 15,
-          level: "Excellent",
-        },
-      ],
-    },
   },
+
+  /* ──────────── WEEK 2 ──────────── */
   {
     id: "week2",
-    number: "02",
-    color: "purple",
+    number: 2,
     title: "Advanced Encrypted Logic",
-    tagline: "Arithmetic, Comparisons & Masked Control Flow",
-    overview: `Week 2 takes the paradigm shift from Week 1 and operationalizes it. Students master the full arithmetic and comparison API of the FHE Solidity library, then tackle the hardest challenge in confidential computing: implementing conditional logic that never bifurcates execution. We apply these skills to build a simplified Dark Pool AMM — one of the most commercially significant use cases for FHE in DeFi.`,
-    objectives: [
-      "Use the full FHE arithmetic suite: add, sub, mul, div, rem, neg, not",
-      "Use all comparison operators: eq, ne, lt, le, gt, ge",
-      "Compose encrypted boolean conditions using FHE.and, FHE.or, FHE.xor",
-      "Implement safe encrypted arithmetic without silent overflow",
-      "Design state machines where all transitions are controlled by FHE.select",
-      "Understand gas cost differentials between different FHE operations",
-    ],
+    subtitle: "Arithmetic, Comparisons & Control Flow",
     lessons: [
       {
+        id: "week2-lesson-1",
         num: "2.1",
-        title: "The Math of Confidentiality",
-        time: "55 min",
-        desc: `Encryption usually makes numbers hard to use. Zama's FHE allows for full homomorphic arithmetic, but with a few "Expert" constraints.
+        title: "FHE Arithmetic & Comparisons",
+        objectives: [
+          "Use FHE.add, sub, mul, div, rem on encrypted values",
+          "Use FHE.le, lt, ge, gt, eq, ne for encrypted comparisons",
+          "Understand gas costs of different operations",
+        ],
+        content:
+          "FHEVM provides a full arithmetic suite for encrypted values. FHE.add and FHE.sub are the cheapest operations and should be your go-to. FHE.mul is significantly more expensive — roughly 3x the gas of an addition — so avoid chaining multiplications when possible. FHE.div is the most expensive operation of all. For comparisons, FHE.le, FHE.lt, FHE.ge, FHE.gt, FHE.eq, and FHE.ne all return ebool. All operations require same-type operands: both must be euint64, for example. If you need to mix an encrypted value with a plaintext constant, wrap the constant with FHE.asEuint64() first. Structure your arithmetic to minimize expensive operations — compute numerator and denominator separately, then divide once at the end.",
+        insight:
+          "FHE.mul costs roughly 3x more gas than FHE.add. Structure your arithmetic to minimize multiplications. Compute numerator and denominator separately, then divide once.",
+        code: `<span class="cm">// Arithmetic on encrypted values</span>
+<span class="ty">euint64</span> sum = FHE.<span class="fn">add</span>(a, b);
+<span class="ty">euint64</span> diff = FHE.<span class="fn">sub</span>(a, b);
+<span class="ty">euint64</span> product = FHE.<span class="fn">mul</span>(a, b);     <span class="cm">// expensive</span>
+<span class="ty">euint64</span> quotient = FHE.<span class="fn">div</span>(a, b);   <span class="cm">// most expensive</span>
 
-### The Arithmetic Suite:
-- **Cheap**: 'FHE.add', 'FHE.sub', 'FHE.not', 'FHE.and/or/xor' (Fastest).
-- **Moderate**: 'FHE.mul' (Costly due to Noise Management).
-- **Expensive**: 'FHE.div', 'FHE.rem' (Avoid inside large loops).
-- **Secret Skill**: Bit-shifting logic via arithmetic.
+<span class="cm">// Comparisons return ebool</span>
+<span class="ty">ebool</span> isLess = FHE.<span class="fn">lt</span>(a, b);
+<span class="ty">ebool</span> isEqual = FHE.<span class="fn">eq</span>(a, b);
+<span class="ty">ebool</span> isGreater = FHE.<span class="fn">gt</span>(a, b);
 
-### The Problem of "Noise":
-Every time you perform 'FHE.mul', you add "Noise" to the ciphertext. Too much noise makes the handle unreadable. Zama handles "Bootstrap" logic automatically, but graduates must learn to minimize multiplications to keep gas costs low.`,
-        code: `// Multi-tier arithmetic example
-function calculateFee(euint64 amount, uint64 feeBps) external returns (euint64) {
-    // 1. Plaintext + Encrypted interop is the most efficient
-    // FHE.mul(euint64, uint64) is cheaper than FHE.mul(euint64, euint64)
-    euint64 fee = FHE.div(FHE.mul(amount, feeBps), 10000);
-    
-    // 2. Safe subtraction (Prevention of underflow)
-    ebool hasEnough = FHE.ge(amount, fee);
-    return FHE.select(hasEnough, FHE.sub(amount, fee), FHE.asEuint64(0));
-}`,
-        notes: `Instructor: This is where we introduce the "Noise" concept. You don't need to be a cryptographer, but you must know that multiplications are "loud." 
-
-**Student Challenge**: Ask them to refactor 'FHE.mul(x, 2)' into 'FHE.add(x, x)' and compare the gas cost. (Answer: Adding is significantly cheaper, and in FHE, bit-shifts aren't free like they are in Solidity).`,
+<span class="cm">// Use comparison result with select</span>
+<span class="ty">euint64</span> max = FHE.<span class="fn">select</span>(FHE.<span class="fn">gt</span>(a, b), a, b);`,
+        codeFilename: "ArithmeticOps.sol",
+        quiz: [
+          {
+            question: "Which FHE operation is the most gas-expensive?",
+            options: ["FHE.div", "FHE.add", "FHE.sub", "FHE.mul"],
+            correct: 0,
+            explanation:
+              "FHE.div is the most gas-expensive operation. FHE.mul is second. Structure arithmetic to minimize these operations.",
+          },
+        ],
       },
       {
+        id: "week2-lesson-2",
         num: "2.2",
-        title: "Compound Comparisons & Boolean Masking",
-        time: "60 min",
-        desc: `In FHE, boolean logic is the steering wheel. Since you can't use 'if' statements, you must "Mask" your data.
+        title: "Boolean Masking & Encrypted Control Flow",
+        objectives: [
+          "Combine multiple ebool conditions",
+          "Build complex business logic without branching",
+          "Implement multi-condition guards with FHE.and/or",
+        ],
+        content:
+          "Real-world contracts rarely have a single condition. You need to check balances, verify authorization, enforce limits, and validate timing — all at once. In standard Solidity, you chain require() calls. In FHEVM, you combine encrypted boolean flags. FHE.and(condA, condB) returns an ebool that is true only when both conditions are true. FHE.or(condA, condB) returns true when either is true. FHE.not(cond) inverts a condition. Chain these to build arbitrarily complex logic: isValid = FHE.and(hasBalance, FHE.and(isNotFrozen, isAuthorized)). Then apply the combined mask with a single FHE.select. This replaces nested if/else trees with a flat, readable, information-leak-free pattern.",
+        insight:
+          "Think of each business rule as an encrypted boolean flag. Combine flags with FHE.and/or. Apply the combined flag with one FHE.select. This replaces nested if/else trees.",
+        code: `<span class="cm">// Multi-condition guard without branching</span>
+<span class="ty">ebool</span> hasBalance = FHE.<span class="fn">ge</span>(balances[sender], amount);
+<span class="ty">ebool</span> notFrozen = FHE.<span class="fn">not</span>(frozen[sender]);
+<span class="ty">ebool</span> withinLimit = FHE.<span class="fn">le</span>(amount, dailyLimit);
 
-### Comparison Essentials:
-- 'FHE.eq/ne' (Equality)
-- 'FHE.lt/le/gt/ge' (Inequality)
-- 'FHE.min/max' (Utility wrappers)
+<span class="cm">// Combine all conditions into a single mask</span>
+<span class="ty">ebool</span> canExecute = FHE.<span class="fn">and</span>(hasBalance, FHE.<span class="fn">and</span>(notFrozen, withinLimit));
 
-### Boolean Algebra:
-Think of 'ebool' as a **filter**. You can stack conditions using bitwise operators ('&', '|', '^') to create highly complex decision trees that the miner can never see.`,
-        code: `// Compound Logic without Branching
-function validatePosition(euint64 price, euint64 collateral) external returns (ebool) {
-    ebool isPriceStable = FHE.lt(price, FHE.asEuint64(10000));
-    ebool isSolvent     = FHE.gt(collateral, FHE.mul(price, 150)); // 150% ratio
-    
-    // Compose the mask
-    ebool isSafe = FHE.and(isPriceStable, isSolvent);
-    
-    // We don't revert. We return the mask.
-    return isSafe;
-}`,
-        notes: `Instructor: Use a "Filtering" metaphor. Imagine three filters (boolean handles) stacked on top of each other. Only if light (the transaction) passes through all three do we update the final state. 
-
-**Expert Tip**: Mention that 'FHE.asEbool()' exists, but most seniors prefer staying in 'euint' space using 0 and 1 for easier math integration.`,
+<span class="cm">// One select to rule them all</span>
+balances[sender] = FHE.<span class="fn">select</span>(canExecute,
+  FHE.<span class="fn">sub</span>(balances[sender], amount),
+  balances[sender]);`,
+        codeFilename: "BooleanMasking.sol",
+        quiz: [
+          {
+            question: "How do you combine two encrypted conditions?",
+            options: [
+              "Use require(condA && condB)",
+              "Use if(condA && condB)",
+              "Use FHE.and(condA, condB)",
+              "Use the && operator on ebool values",
+            ],
+            correct: 2,
+            explanation:
+              "ebool values cannot use Solidity's && or || operators. Use FHE.and(), FHE.or(), and FHE.not() to combine encrypted boolean conditions.",
+          },
+        ],
       },
       {
+        id: "week2-lesson-3",
         num: "2.3",
-        title: "Safe Math & Noise Management",
-        time: "50 min",
-        desc: `FHE handles wrap on overflow silently (just like Solidity <0.8). However, because you can't 'assert()', you must build "Safe Proofs" into your math logic.
+        title: "Building a Dark Pool AMM",
+        objectives: [
+          "Implement a constant-product AMM with encrypted reserves",
+          "Handle encrypted swap amounts safely",
+          "Understand anti-MEV properties of encrypted trading",
+        ],
+        content:
+          "A Dark Pool AMM hides trade sizes from the mempool, providing inherent MEV protection. The constant-product formula k = x * y still holds, but all values are encrypted. The swap function accepts an encrypted input amount, computes the output using the standard AMM formula (dy = y * dx / (x + dx)), and updates both reserves — all using FHE operations. Invalid swaps (zero output, insufficient liquidity) silently no-op via FHE.select. In a standard AMM, MEV bots see your trade in the mempool before it executes and can sandwich it for profit. In an FHE AMM, the trade amount is an encrypted euint64 — bots see only an opaque ciphertext handle. The anti-MEV protection is not a feature bolted on after the fact; it is an inherent property of computing on encrypted data.",
+        insight:
+          "In a standard AMM, MEV bots see your trade before it executes and sandwich it. In an FHE AMM, the trade amount is encrypted — bots see nothing. The anti-MEV protection is inherent, not bolted on.",
+        code: `<span class="cm">// Constant-product swap with encrypted values</span>
+<span class="kw">function</span> <span class="fn">swap</span>(<span class="ty">externalEuint64</span> encAmount, <span class="ty">bytes</span> <span class="kw">calldata</span> proof) <span class="kw">external</span> {
+  <span class="ty">euint64</span> dx = FHE.<span class="fn">fromExternal</span>(encAmount, proof);
 
-### Expert Patterns:
-1. **Saturation**: If overflow occurs, return 'type(uint).max' instead of wrapping.
-2. **Handle Re-use**: Avoid repeating the same math. Store the handle in a variable to save gas.
-3. **Randomness**: Use 'FHE.rand()' for secure, private on-chain randomness if needed.`,
-        code: `function safeAdd(euint64 a, euint64 b) internal returns (euint64) {
-    euint64 res = FHE.add(a, b);
-    // If res < a, it overflowed
-    ebool overflowed = FHE.lt(res, a);
-    
-    return FHE.select(overflowed, FHE.asEuint64(type(uint64).max), res);
+  <span class="cm">// dy = reserveB * dx / (reserveA + dx)</span>
+  <span class="ty">euint64</span> numerator = FHE.<span class="fn">mul</span>(reserveB, dx);
+  <span class="ty">euint64</span> denominator = FHE.<span class="fn">add</span>(reserveA, dx);
+  <span class="ty">euint64</span> dy = FHE.<span class="fn">div</span>(numerator, denominator);
+
+  <span class="cm">// Only execute if output > 0</span>
+  <span class="ty">ebool</span> validSwap = FHE.<span class="fn">gt</span>(dy, FHE.<span class="fn">asEuint64</span>(<span class="num">0</span>));
+
+  reserveA = FHE.<span class="fn">select</span>(validSwap,
+    FHE.<span class="fn">add</span>(reserveA, dx), reserveA);
+  reserveB = FHE.<span class="fn">select</span>(validSwap,
+    FHE.<span class="fn">sub</span>(reserveB, dy), reserveB);
+
+  FHE.<span class="fn">allowThis</span>(reserveA);
+  FHE.<span class="fn">allowThis</span>(reserveB);
 }`,
-        notes: `Instructor: This lesson connects math to security. If a payroll contract overflows, someone's salary could wrap to 0. In FHE, this is a "Silent Failure." Always use saturation patterns in production.`,
-      },
-      {
-        num: "2.4",
-        title: "Dark Pool AMM: Secret Reserves",
-        time: "75 min",
-        desc: `Dark Pools are the "Grand Stage" for Week 2. We hide the Price, the Reserves, and the Volume.
-
-### Why this changes DeFi:
-In a public pool (Uniswap), bots see your swap and front-run you. In a Zama Dark Pool, the trade amount is a ciphertext. The bot doesn't know if you're buying or selling until the trade is already complete.
-
-### Implementation Checklist:
-- [x] 'x * y = k' check via FHE math.
-- [x] 'externalEuint64' for private trade entry.
-- [x] 'FHE.select' for reserve updates.`,
-        code: `// Dark Pool: The Secret Swap
-function swap(externalEuint64 encIn, bytes calldata proof) external {
-    euint64 amountIn = FHE.fromExternal(encIn, proof);
-    
-    // Constant Product Math: dy = (y * dx) / (x + dx)
-    euint64 amountOut = FHE.div(
-        FHE.mul(_reserveY, amountIn), 
-        FHE.add(_reserveX, amountIn)
-    );
-
-    // Slippage Guard (Silent)
-    ebool ok = FHE.gt(amountOut, _minReceive);
-    
-    // Atomic Private Swaps
-    _reserveX = FHE.add(_reserveX, amountIn);
-    _reserveY = FHE.select(ok, FHE.sub(_reserveY, amountOut), _reserveY);
-    
-    // Re-grant ACL
-    FHE.allowThis(_reserveX); FHE.allowThis(_reserveY);
-}`,
-        notes: `Instructor: This is the high point. Students often ask "How does the user get their tokens if the contract doesn't know how many to send?" 
-        
-Answer: The tokens *are* sent, but their balance is just another encrypted ciphertext handle. The user sees their balance change in Week 3's decryption lesson.`,
-      },
-      {
-        num: "2.5",
-        title: "Confidential Dutch Auctions",
-        time: "60 min",
-        desc: `Unlike Blind Auctions, Dutch Auctions have a descending price curve. In FHE, we hide the **Strike Price** and the **Bid Timing**.
-
-### Expert Logic:
-1. **Time-Variant Pricing**: The 'currentPrice' is a public function of block.timestamp.
-2. **Encrypted Bids**: Bidders submit 'externalEuint64'.
-3. **Atomic Settlement**: If 'bid >= currentPrice', the trade executes. This comparison happens in the Coprocessor using 'FHE.ge'.`,
-        code: `// Dutch Auction: Descending Price Curve
-function buyAtCurrentPrice(externalEuint64 encBid, bytes calldata proof) external {
-    uint256 publicPrice = getCurrentPrice(); // Descending public curve
-    euint64 bid = FHE.fromExternal(encBid, proof);
-    
-    // strike = (bid >= publicPrice)
-    ebool isSuccessful = FHE.ge(bid, FHE.asEuint64(publicPrice));
-    
-    // Transfer logic gated by isSuccessful
-    _balances[msg.sender] = FHE.select(isSuccessful, FHE.add(_balances[msg.sender], _amountToSell), _balances[msg.sender]);
-    FHE.allowThis(_balances[msg.sender]);
-}`,
-        notes: `Instructor: This teaches students how to combine **Public State** (time-based price) with **Private State** (user bid). It's a hybrid model that is extremely gas-efficient.`,
-      },
-      {
-        num: "2.6",
-        title: "AMM Optimization: Plaintext Denominators",
-        time: "55 min",
-        desc: `Gas is war. 'FHE.div(euint64, euint64)' is significantly more expensive than 'FHE.div(euint64, uint64)'.
-
-### The Professor's Trick:
-If your denominator is a public constant (like a 3% fee or a fixed liquidity divisor), **never** cast it to an 'euint'. Use the plaintext version of the division operator. This can save up to 80% on the division's gas cost.`,
-        code: `// ✓ CORRECT (Optimized)
-euint64 result = FHE.div(encryptedNumerator, 100); 
-
-// ✗ WRONG (Expensive)
-euint64 result = FHE.div(encryptedNumerator, FHE.asEuint64(100));`,
-        notes: `Instructor: This is a "Zama Pro" tip. Always look for ways to keep constants in plaintext. The Coprocessor optimizations for plaintext-operand operations are massive.`,
+        codeFilename: "DarkPoolAMM.sol",
+        quiz: [
+          {
+            question:
+              "Why does an FHE-based AMM prevent MEV extraction?",
+            options: [
+              "Trade amounts are encrypted — bots can't see pending trades",
+              "Transactions are ordered differently by the sequencer",
+              "It uses a different pricing formula than Uniswap",
+              "It runs on a private sidechain",
+            ],
+            correct: 0,
+            explanation:
+              "MEV bots rely on seeing trade amounts in the mempool to front-run. When the amount is encrypted as euint64, the bot sees only a ciphertext handle — useless for price prediction.",
+          },
+        ],
       },
     ],
-    homework: {
-      title: "Dark Pool AMM — Simplified",
-      level: "Pass / Excellent",
-      time: "4–6 hours",
-      desc: "Build a single-pair confidential token swap contract where both the input amount and slippage tolerance are encrypted. The contract must update reserves correctly without leaking trade direction information.",
-      starter: "https://github.com/zama-ai/fhevm-hardhat-template",
-      grading: [
-        {
-          criterion: "Pool initialization with encrypted reserves",
-          points: 10,
-          level: "Pass",
-        },
-        {
-          criterion:
-            "swap() accepts externalEuint64 input + FHE.fromExternal() proof validation",
-          points: 20,
-          level: "Pass",
-        },
-        {
-          criterion: "Constant-product formula computed on euint64 values",
-          points: 20,
-          level: "Pass",
-        },
-        {
-          criterion:
-            "Invalid swaps silently no-op (no revert, no state change)",
-          points: 20,
-          level: "Pass",
-        },
-        {
-          criterion: "Encrypted slippage tolerance guards the amountOut",
-          points: 15,
-          level: "Excellent",
-        },
-        {
-          criterion: "Comprehensive Hardhat tests covering edge cases",
-          points: 15,
-          level: "Excellent",
-        },
-      ],
-    },
   },
+
+  /* ──────────── WEEK 3 ──────────── */
   {
     id: "week3",
-    number: "03",
-    color: "orange",
-    title: "Access Control & the dApp Frontend",
-    tagline: "Decryption, ACL Permissions & the Relayer SDK",
-    overview: `Week 3 answers the question every student has been asking since Week 1: "If everything is encrypted, how does a user ever see their own balance?" The answer is the Relayer SDK's user decryption flow and Gateway public decryption. We cover both mechanisms in depth, then wire a complete browser-based frontend using @zama-fhe/relayer-sdk to generate FHE-valid encrypted inputs and decrypt user-private state. By the end of the week, students can build end-to-end confidential dApps.`,
-    objectives: [
-      "Understand the dual-chain architecture: host chain (Sepolia) and Gateway chain (chainId 10901)",
-      "Implement all three ACL permission tiers: FHE.allow() (permanent), FHE.allowTransient() (gas-optimized), FHE.makePubliclyDecryptable()",
-      "Understand user decryption (private, via Relayer) vs public decryption (on-chain Gateway)",
-      "Initialize @zama-fhe/relayer-sdk with SepoliaConfig and encrypt inputs client-side",
-      "Build a complete Blind Auction with an interactive frontend script",
-      "Use FHE.isSenderAllowed() and FHE.isAllowed() to verify access at runtime",
-    ],
+    number: 3,
+    title: "Access Control & Decryption",
+    subtitle: "Decryption Patterns & Relayer SDK",
     lessons: [
       {
+        id: "week3-lesson-1",
         num: "3.1",
-        title: "The Decryption Lifecycle",
-        time: "55 min",
-        desc: `Everything in FHE is encrypted by default. To see a value, you must explicitly "request" it. There are two paths:
-
-### 1. User Decryption (Private)
-- **Goal**: A user wants to see their own balance.
-- **Mechanism**: Re-encryption.
-- **Workflow**: User signs an EIP-712 request -> Relayer verifies the signature + ACL -> Relayer returns the plaintext to the user's browser.
-
-### 2. Public Revelation (Gateway)
-- **Goal**: Reveal the winner of an auction to everyone.
-- **Mechanism**: FHE.makePubliclyDecryptable().
-- **Workflow**: Contract authorizes a handle -> Anyone can now query the Relayer for the plaintext without a signature.`,
-        code: `// Authorization for Public Reveal
-function finalizeAuction(euint64 winningBid) external onlyOwner {
-    // 1. Mark this specific handle as "Publicly Decryptable"
-    // This doesn't reveal it instantly; it grants PERMISSION to reveal
-    FHE.makePubliclyDecryptable(winningBid);
-    
-    // 2. Emit the handle so the frontend knows what to query
-    emit WinnerRevealed(winningBid);
-}`,
-        notes: `Instructor: This is the "Security vs. Utility" balance. Explain that FHE.makePubliclyDecryptable() is a one-way street for that specific handle. 
-
-**Expert Tip**: Students often confuse 'FHE.allow()' with 'FHE.makePubliclyDecryptable()'. Clarify: 'allow' is for specific addresses (Identity-based); 'makePubliclyDecryptable' is for the world (Access-based).`,
-      },
-      {
-        num: "3.2",
-        title: "ACL Permission Tiers",
-        time: "60 min",
-        desc: `Access Control Lists (ACL) are the gatekeepers of the Coprocessor. If the ACL says "No," the crypto math fails.
-
-### The Three Tiers of Permission:
-1. **Permanent (FHE.allow)**: Stored on-chain. Best for "persistent" data like user balances.
-2. **Transient (FHE.allowTransient)**: Uses EIP-1153. Valid ONLY for the current transaction. **10x cheaper gas.**
-3. **Internal (FHE.allowThis)**: Shorthand for granting the contract itself permission to compute on a handle.`,
-        code: `// Expert Gas Optimization
-function fastProcess(euint64 data) external {
-    // ✗ Expensive: FHE.allow(data, address(this))
-    
-    // ✓ Professional: Valid only for this tx, saves massive gas
-    FHE.allowTransient(data, address(this));
-    
-    _secretResult = FHE.add(data, _bonus);
-    FHE.allowThis(_secretResult); // Re-grant for next tx
-}`,
-        notes: `Instructor: Spend 15 minutes on the "Permission Double-Spend" problem. If I give you a handle, and you mutate it (FHE.add), you get a NEW handle. Your old permission DOES NOT work on the new handle. 
-
-**Student Challenge**: Why does FHE.allowTransient save gas? (Answer: It doesn't write to permanent storage state; it leaves the permission in the EVM's transient memory).`,
-      },
-      {
-        num: "3.3",
-        title: "@zama-fhe/relayer-sdk Mastery",
-        time: "70 min",
-        desc: `The Relayer SDK is the bridge between the User's Wallet and the FHE Coprocessor.
-
-### Integration Steps:
-1. **Initialize**: 'const instance = await createInstance(SepoliaConfig);'
-2. **Encrypt**: Convert browser inputs into 'externalEuint64' payloads.
-3. **Sign & Read**: Use EIP-712 to securely request a private read.
-
-### The Decryption Buffer:
-When a user requests a read, they provide a Public Key. The Relayer re-encrypts the result specifically for that key. Only the user with the corresponding Private Key can see the number.`,
-        code: `// Frontend: Secure Private Read
-async function getMyBalance(contractAddr, balanceHandle) {
-    const instance = await createInstance(SepoliaConfig);
-    const { publicKey, privateKey } = instance.generateKeypair();
-
-    // 1. Create EIP-712 Signature (Wallet popup)
-    const eip712 = instance.createEIP712(publicKey, [contractAddr]);
-    const signature = await signer.signTypedData(...eip712);
-
-    // 2. Fetch from Relayer
-    const result = await instance.userDecrypt(
-        [{ handle: balanceHandle, contractAddress: contractAddr }],
-        privateKey, publicKey, signature
-    );
-
-    console.log("My Hidden Balance is:", result[balanceHandle]);
-}`,
-        notes: `Instructor: This is the first time students see "The Whole Loop." The 'wow' factor is high. 
-
-**Expert Pitfall**: Remind students that 'SepoliaConfig' has the Gateway addresses baked in. If they move to a custom chain, they must provide those addresses manually.`,
-      },
-      {
-        num: "3.4",
-        title: "The WETH-FHE Pattern",
-        time: "50 min",
-        desc: `Native ETH is public. To make it private, we use a "Shielded Wrapper" (similar to WETH).
-
-### The 2-Step Shielding Process:
-1. **Wrap**: User sends public ETH to the contract; contract mints an equal amount of **encrypted** balance handles (euint64) back to the user.
-2. **Unwrap**: User requests an unwrap; contract verifies the encrypted balance, burns it, and sends public ETH back.`,
-        code: `// Shielding Native ETH
-function wrap() external payable {
-    require(msg.value > 0);
-    // Mint encrypted balance to user
-    euint64 amount = FHE.asEuint64(msg.value);
-    _encBalances[msg.sender] = FHE.add(_encBalances[msg.sender], amount);
-    
-    // Grant permissions
-    FHE.allow(_encBalances[msg.sender], msg.sender);
-    FHE.allowThis(_encBalances[msg.sender]);
+        title: "Decryption Patterns — Public vs Private",
+        objectives: [
+          "Use FHE.makePubliclyDecryptable() for public reveals",
+          "Understand the Relayer SDK for private decryption",
+          "Know when to use each pattern",
+        ],
+        content:
+          "There are two decryption paths in FHEVM, and choosing the right one is critical. Public decryption: call FHE.makePubliclyDecryptable(handle) on-chain, and then anyone can read the plaintext value via the Relayer endpoint. This is used for scenarios like auction winner reveals and public proofs — situations where a previously-hidden value must become visible to everyone. Private decryption: the user calls instance.userDecrypt(handle) via the Relayer SDK off-chain. This only works if FHE.allow(handle, user) was previously called on-chain. This is the pattern for viewing your own balance, checking your own bid, or reading any value meant only for your eyes. In both cases, decryption is always two-step: authorize on-chain first, then execute the actual decryption off-chain through the Relayer. There is no synchronous decrypt call within the smart contract.",
+        insight:
+          "Decryption is always two-step: authorize on-chain (FHE.allow or FHE.makePubliclyDecryptable), then execute off-chain (Relayer SDK). There is no synchronous decrypt.",
+        code: `<span class="cm">// PUBLIC decryption — anyone can read after this</span>
+<span class="kw">function</span> <span class="fn">revealWinner</span>() <span class="kw">external</span> onlyOwner {
+  FHE.<span class="fn">makePubliclyDecryptable</span>(highestBid);
+  FHE.<span class="fn">makePubliclyDecryptable</span>(winnerAddress);
+  <span class="cm">// Off-chain: call Relayer to read plaintext</span>
 }
 
-function unwrap(externalEuint64 encAmount, bytes calldata proof) external {
-    euint64 amount = FHE.fromExternal(encAmount, proof);
-    // ... verification & transfer logic ...
-}`,
-        notes: `Instructor: This is a foundational DeFi building block. Explain that 'Native ETH' cannot stay encrypted on-chain because its balances are part of the core EVM state. Only 'Handles' inside a contract can be private.`,
+<span class="cm">// PRIVATE decryption — only authorized user</span>
+<span class="cm">// On-chain: FHE.allow(balance, user) was already called</span>
+<span class="cm">// Off-chain (JS):</span>
+<span class="cm">// const plaintext = await instance.userDecrypt(handle);</span>`,
+        codeFilename: "DecryptionPatterns.sol",
+        quiz: [
+          {
+            question:
+              "How does a user view their own encrypted balance?",
+            options: [
+              "The frontend decrypts it locally using a private key",
+              "Use instance.userDecrypt() via the Relayer SDK after FHE.allow() was granted",
+              "Call a view function that returns the plaintext directly",
+              "They can't — all values are permanently hidden",
+            ],
+            correct: 1,
+            explanation:
+              "The contract must call FHE.allow(handle, user) to authorize. Then the user calls instance.userDecrypt(handle) via the Relayer SDK to get the plaintext off-chain.",
+          },
+        ],
       },
       {
-        num: "3.5",
-        title: "Capstone: The Blind Auction Frontend",
-        time: "75 min",
-        desc: `We wire the Week 3 UI to the Week 2 Contract. 
+        id: "week3-lesson-2",
+        num: "3.2",
+        title: "The Relayer SDK — Browser-Side FHE",
+        objectives: [
+          "Initialize the Relayer SDK with createInstance",
+          "Create encrypted inputs in the browser",
+          "Submit encrypted transactions",
+        ],
+        content:
+          "The @zama-fhe/relayer-sdk is the bridge between the user's browser and the FHE coprocessor. It lets users generate encrypted inputs client-side without trusting a third party with their plaintext values. The flow is straightforward: first, call createInstance(SepoliaConfig) or createInstance(EthereumConfig) to initialize the SDK. Then create an encrypted input buffer with instance.createEncryptedInput(contractAddr, userAddr). Add the value you want to encrypt with input.add64(BigInt(amount)). Finally, call await input.encrypt() to get back an object containing handles and inputProof. Submit handles[0] and inputProof to your smart contract function. The SDK generates a ZK proof that the encrypted value is well-formed and within the expected bit range, ensuring no one can submit garbage ciphertext.",
+        insight:
+          "The Relayer SDK is the bridge between the user's browser and the FHE coprocessor. It generates the ZK proof that the encrypted value is well-formed.",
+        code: `<span class="cm">// Browser-side: generate encrypted input</span>
+<span class="kw">import</span> { createInstance, SepoliaConfig } <span class="kw">from</span> <span class="str">"@zama-fhe/relayer-sdk"</span>;
 
-### Features:
-- **Hidden Bidding**: No one knows the current high bid.
-- **Private Winner Reveal**: The winner is revealed only when the admin calls 'finalize'.
-- **Bidders' Privacy**: Losing bidders never reveal their bid amounts, even after the auction ends.`,
-        code: `// Full Lifecycle check
-async function placeBid(amount) {
-    const buffer = instance.createEncryptedInput(AUCTION_ADDR, userAddr);
-    buffer.add64(amount);
-    
-    const { handles, inputProof } = await buffer.encrypt();
-    
-    // Calls the 'bid(externalEuint64, bytes)' function
-    await auctionContract.bid(handles[0], inputProof);
+<span class="kw">const</span> instance = <span class="kw">await</span> <span class="fn">createInstance</span>(SepoliaConfig);
+
+<span class="kw">const</span> input = instance.<span class="fn">createEncryptedInput</span>(
+  contractAddress, userAddress
+);
+input.<span class="fn">add64</span>(BigInt(<span class="num">500</span>));  <span class="cm">// encrypt the value 500</span>
+
+<span class="kw">const</span> { handles, inputProof } = <span class="kw">await</span> input.<span class="fn">encrypt</span>();
+
+<span class="cm">// Submit to contract</span>
+<span class="kw">await</span> contract.<span class="fn">bid</span>(handles[<span class="num">0</span>], inputProof);`,
+        codeFilename: "relayer-client.js",
+        quiz: [
+          {
+            question: "What does createEncryptedInput() do?",
+            options: [
+              "Sends plaintext data to the coprocessor for encryption",
+              "Creates a new smart contract with FHE capabilities",
+              "Creates a client-side encryption buffer that generates FHE-compatible ciphertexts with ZK proofs",
+              "Encrypts data directly on the blockchain",
+            ],
+            correct: 2,
+            explanation:
+              "createEncryptedInput creates a local encryption buffer. When you call encrypt(), it produces FHE-compatible ciphertext handles and a ZK proof that the input is well-formed.",
+          },
+        ],
+      },
+      {
+        id: "week3-lesson-3",
+        num: "3.3",
+        title: "Building a Blind Auction",
+        objectives: [
+          "Implement sealed-bid auction with encrypted bids",
+          "Track highest bid using FHE.select without revealing values",
+          "Trigger public decryption for winner reveal",
+        ],
+        content:
+          "A blind auction is the perfect showcase for FHEVM's capabilities. The architecture: a bid() function accepts encrypted bids and compares each new bid with the current highest using FHE.gt and FHE.select. The highest bidder is tracked as an eaddress. During the entire bidding phase, nobody — not even the contract owner — knows who is winning or what any bid amount is. The gas cost is identical whether a bid is higher or lower, so observers learn nothing from transaction patterns. After the auction ends, the owner calls revealWinner() which marks the highest bid and winner address as publicly decryptable via FHE.makePubliclyDecryptable(). The frontend then reads the results through the Relayer SDK. Individual bidders can always check their own bid amount via private decryption (because FHE.allow was called for each bidder).",
+        insight:
+          "The auction never reveals who's winning during the bidding phase. Even failed bids don't leak information — the gas cost is identical whether your bid is higher or lower.",
+        code: `<span class="kw">function</span> <span class="fn">bid</span>(<span class="ty">externalEuint64</span> encBid, <span class="ty">bytes</span> <span class="kw">calldata</span> proof) <span class="kw">external</span> {
+  <span class="ty">euint64</span> newBid = FHE.<span class="fn">fromExternal</span>(encBid, proof);
+
+  <span class="cm">// Is this bid higher? We don't know — and that's the point</span>
+  <span class="ty">ebool</span> isHigher = FHE.<span class="fn">gt</span>(newBid, highestBid);
+
+  <span class="cm">// Update highest bid — silently, indistinguishably</span>
+  highestBid = FHE.<span class="fn">select</span>(isHigher, newBid, highestBid);
+  highestBidder = FHE.<span class="fn">select</span>(isHigher,
+    FHE.<span class="fn">asEaddress</span>(msg.sender), highestBidder);
+
+  FHE.<span class="fn">allowThis</span>(highestBid);
+  FHE.<span class="fn">allowThis</span>(highestBidder);
+  FHE.<span class="fn">allow</span>(bids[msg.sender], msg.sender);
 }`,
-        notes: `Instructor: Focus on UX. Because the transaction doesn't revert (No Revert rule), the frontend needs to "Listen" for events or simulate the state to show the user a "Pending" status. This is how you build professional FHE dApps.`,
+        codeFilename: "BlindAuction.sol",
+        quiz: [
+          {
+            question:
+              "Can an observer tell if a new bid became the highest bid?",
+            options: [
+              "Yes, by watching gas usage",
+              "Yes, by reading storage",
+              "No — gas cost and execution are identical regardless of outcome",
+              "No, but only if the contract is paused",
+            ],
+            correct: 2,
+            explanation:
+              "FHE.select always computes both branches and costs the same gas. The transaction succeeds identically whether the bid was higher or not. Zero information leakage.",
+          },
+        ],
       },
     ],
-    homework: {
-      title: "Confidential Blind Auction",
-      level: "Pass / Excellent",
-      time: "5–7 hours",
-      desc: "Build a complete sealed-bid auction on fhEVM. Bids must be submitted as externalEuint64 inputs, the highest bid tracked confidentially, and the winner revealed via FHE.makePubliclyDecryptable() at auction close. Include a @zama-fhe/relayer-sdk frontend script.",
-      starter: "https://github.com/zama-ai/fhevm-hardhat-template",
-      grading: [
-        {
-          criterion:
-            "bid() uses externalEuint64 + FHE.fromExternal() and stores correctly",
-          points: 20,
-          level: "Pass",
-        },
-        {
-          criterion:
-            "Highest bid tracked via FHE.select — no individual bids revealed",
-          points: 20,
-          level: "Pass",
-        },
-        {
-          criterion:
-            "revealWinner() calls FHE.makePubliclyDecryptable() correctly",
-          points: 20,
-          level: "Pass",
-        },
-        {
-          criterion:
-            "ACL: FHE.allow() + FHE.allowThis() correctly scoped after every update",
-          points: 15,
-          level: "Pass",
-        },
-        {
-          criterion:
-            "Working @zama-fhe/relayer-sdk script using SepoliaConfig to submit encrypted bid",
-          points: 15,
-          level: "Excellent",
-        },
-        {
-          criterion:
-            "userDecrypt() endpoint lets bidders privately verify their recorded bid",
-          points: 10,
-          level: "Excellent",
-        },
-      ],
-    },
   },
+
+  /* ──────────── WEEK 4 ──────────── */
   {
     id: "week4",
-    number: "04",
-    color: "cyan",
-    title: "Production Architecture & Capstone",
-    tagline: "Gas Optimization, Multi-Contract Design & Deployment",
-    overview: `The final week synthesizes everything into a production-grade capstone. Students learn to make architectural decisions — what to encrypt, what to leave public, and how to minimize the FHE compute overhead that drives gas costs. We also cover multi-contract patterns, the coprocessor model for cross-chain confidentiality, and end-to-end deployment on the Sepolia testnet. The Capstone — a Confidential Mass-Payroll System — is a complete, employer-grade dApp.`,
-    objectives: [
-      "Benchmark and minimize FHE gas costs via selective encryption",
-      "Design multi-contract fhEVM architectures with shared encrypted state",
-      "Deploy production contracts to Sepolia with proper secret management",
-      "Build a comprehensive Hardhat test suite with 100% branch coverage",
-      "Understand the Zama coprocessor model for cross-chain confidentiality",
-      "Ship a full capstone: Confidential Mass-Payroll System",
-    ],
+    number: 4,
+    title: "Production & Capstone",
+    subtitle: "Optimization, Multi-Contract & Deployment",
     lessons: [
       {
+        id: "week4-lesson-1",
         num: "4.1",
-        title: "EIP-1153 & Transient Gas Optimization",
-        time: "60 min",
-        desc: `FHE operations are expensive. A single 'FHE.add' can cost 100x more than a standard '+' in Solidity. To build production apps, you must master **Selective Encryption** and **Transient Storage**.
-
-### EIP-1153: The FHE Game-Changer
-Starting with Zama's latest releases, we leverage 'FHE.allowTransient()'. This uses EIP-1153 (Transient Storage) to grant permissions that vanish at the end of the transaction.
-
-### Optimization Rules:
-1. **Plaintext Metadata**: Don't encrypt the sender's address or the timestamp. It's usually not sensitive and wastes massive gas.
-2. **Casting**: 'euint8' is cheaper than 'euint64'. Use the smallest type possible.
-3. **Transient ACLs**: Always use 'FHE.allowTransient' for intermediate contract calls.`,
-        code: `// Multi-Contract Gas Optimization
-function executePayroll(address registry) external {
-    euint64 salary = SalaryRegistry(registry).getSalary(msg.sender);
-    
-    // ✓ FAST: Grants permission only for this tx loop
-    FHE.allowTransient(salary, address(this));
-    
-    _totalPaid = FHE.add(_totalPaid, salary);
-    FHE.allowThis(_totalPaid);
-}`,
-        notes: `Instructor: This is the "Separating Pros from Amateurs" lesson. Show a gas report comparing 'FHE.allow' vs 'FHE.allowTransient'. The 10x savings is what makes complex DeFi possible on Zama. 
-
-**Expert Tip**: Mention that 'FHE.allowTransient' requires Solidity 0.8.24+ to support the 'TSTORE' opcode.`,
-      },
-      {
-        num: "4.2",
-        title: "Multi-Contract Security & ACL Delegation",
-        time: "60 min",
-        desc: `Production dApps are decentralized across many contracts. Managing permissions across this mesh is the hardest part of FHE security.
-
-### Transitive Permissions:
-If Contract A has a handle, and sends it to Contract B, Contract B **cannot** use it unless:
-1. Contract A calls 'FHE.allow(handle, address(B))'.
-2. Or the User has pre-authorized Contract B.
-
-### Security Checklist:
-- [ ] Use 'FHE.isSenderAllowed(handle)' to prevent unauthorized contracts from "stealing" compute.
-- [ ] Implement 'OnlyCoprocessor' modifiers for functions that receive Gateway results.`,
-        code: `// Secure Multi-Contract Pattern
-function processData(euint64 data) external {
-    // 1. Verify the sender actually has access to this pointer
-    // This prevents "Handle Probing" attacks
-    require(FHE.isSenderAllowed(data), "Unauthorized Handle");
-
-    // 2. Delegate to logic contract
-    FHE.allowTransient(data, address(logicContract));
-    logicContract.run(data);
-}`,
-        notes: `Instructor: Use a "Key and Lock" diagram. Just because I give you an envelope (handle) doesn't mean you have the key (ACL) to open it. Multi-contract security is about managing those cryptographic "delegations" safely.`,
-      },
-      {
-        num: "4.3",
-        title: "The Production Lifecycle: CI/CD & Faucets",
-        time: "65 min",
-        desc: `Deploying to Sepolia is different from local mock testing.
-
-### Key Deployment Steps:
-1. **Mnemonic Management**: Use 'npx hardhat vars' (NEVER .env).
-2. **Sepolia Config**: 'chainId: 11155111'.
-3. **Gateway Config**: 'chainId: 10901'.
-4. **Relayer URL**: Zama's official testnet relayer (available in 'SepoliaConfig').`,
-        code: `# Production Hardhat Deploy
-npx hardhat vars set MNEMONIC "your twelve word..."
-npx hardhat vars set INFURA_KEY "xyz..."
-
-# Deploy to the Host Chain (Sepolia)
-npx hardhat deploy --network sepolia`,
-        notes: `Instructor: Finish the course by showing a live transaction on the Sepolia Explorer. Point out that the data is an 'Encrypted Input'.`,
-      },
-      {
-        num: "4.4",
-        title: "Institutional Standards: ERC7984 & ERC7821",
-        time: "60 min",
-        desc: `Professional FHE development requires following global standards to ensure wallet and explorer compatibility.
-
-### ERC7984: The Confidential Token Standard
-This is the equivalent of ERC20 but for FHE. It standardizes how 'view' functions interact with the Relayer and how 'allowances' are handled in encrypted space.
-
-### ERC7821: The Executor Standard
-Learn how to design contracts that allow third-party executors (Relayers) to submit FHE computations on behalf of users securely.`,
-        code: `// ERC7984 Compliance: Forced Transfer for RWAs
-function forceTransfer(address from, address to, euint64 amount) external onlyOwner {
-    // 1. Verify compliance via encrypted checks
-    // 2. Execute transfer using Admin ACL bypass
-    _balances[from] = FHE.sub(_balances[from], amount);
-    _balances[to] = FHE.add(_balances[to], amount);
-    
-    // Grant permissions back to the respective parties
-    FHE.allow(_balances[from], from);
-    FHE.allow(_balances[to], to);
-}`,
-        notes: `Instructor: This is the "Trillion Dollar" use case. Real World Assets (RWAs) require the issuer to have "Admin Overrides" for legal compliance (seizures/clawbacks). ERC7984 provides the blueprint for doing this without leaking the balance to the public.`,
-      },
-      {
-        num: "4.5",
-        title: "The Audit Hall of Shame: Anti-Patterns",
-        time: "55 min",
-        desc: `Security in FHE is counter-intuitive. Typical Solidity hacks don't apply, but "Data Leaks" are catastrophic.
-
-### Top 3 FHE Anti-Patterns:
-1. **The View-Function Leak**: Returning an encrypted handle in a public 'view' function that doesn't check for 'isSenderAllowed'.
-2. **Handle Probing**: Allowing anyone to pass a handle to a function, which then updates state—allowing a malicious actor to "test" if a handle represents a certain value.
-3. **Weak Re-encryption**: Using static keys for re-encryption instead of EIP-712 ephemeral keys.`,
-        code: `// ✗ DANGEROUS ANTI-PATTERN
-function getBalancePublic(address user) external view returns (euint64) {
-    // VULNERABILITY: This returns a pointer to anyone.
-    // If the Relayer isn't perfectly configured, this is a leak.
-    return _balances[user];
+        title: "Gas Optimization & Selective Encryption",
+        objectives: [
+          "Identify which fields should be encrypted vs plaintext",
+          "Minimize FHE operation chains",
+          "Use FHE.allowTransient() for temporary handles",
+        ],
+        content:
+          "The art of FHEVM development is knowing what NOT to encrypt. Every FHE operation has a significant gas overhead compared to its plaintext equivalent, so over-encryption wastes gas and can hit compute limits. Under-encryption leaks data. The sweet spot is surgical encryption of only the values that require privacy. Employee ID? Plaintext. Salary? Encrypted. Timestamps? Plaintext. Vote counts per candidate? Encrypted. Total voter turnout? Plaintext. Beyond choosing what to encrypt, minimize operation chains. Each FHE operation creates a new handle with new ACL overhead. FHE.allowTransient() grants temporary access within a single transaction — cheaper than FHE.allow() for intermediate values that won't be stored. Structure your computation to batch operations and reduce the total number of FHE calls.",
+        insight:
+          "The art of FHEVM development is knowing what NOT to encrypt. Over-encryption wastes gas and hits compute limits. Under-encryption leaks data. The sweet spot is surgical.",
+        code: `<span class="cm">// WRONG: Over-encrypted struct (wasteful)</span>
+<span class="kw">struct</span> <span class="ty">Employee</span> {
+  <span class="ty">euint64</span> id;          <span class="cm">// no privacy benefit</span>
+  <span class="ty">euint64</span> salary;      <span class="cm">// needs privacy</span>
+  <span class="ty">euint64</span> startDate;   <span class="cm">// no privacy benefit</span>
 }
 
-// ✓ SECURE PATTERN
-function getBalanceSecure(address user) external view returns (euint64) {
-    require(FHE.isSenderAllowed(_balances[user]), "Identity Mismatch");
-    return _balances[user];
+<span class="cm">// RIGHT: Selectively encrypted</span>
+<span class="kw">struct</span> <span class="ty">Employee</span> {
+  <span class="ty">uint256</span> id;          <span class="cm">// plaintext — public info</span>
+  <span class="ty">euint64</span> salary;      <span class="cm">// encrypted — private</span>
+  <span class="ty">uint256</span> startDate;   <span class="cm">// plaintext — public info</span>
+}
+<span class="cm">// Gas savings: ~60-70% reduction</span>`,
+        codeFilename: "SelectiveEncryption.sol",
+        quiz: [
+          {
+            question:
+              "Which field should typically be encrypted in a payroll contract?",
+            options: [
+              "Employee address",
+              "Salary amount",
+              "Pay period start date",
+              "Contract deployment timestamp",
+            ],
+            correct: 1,
+            explanation:
+              "Only values requiring privacy should be encrypted. Salary amounts are private; addresses, dates, and timestamps are typically public information.",
+          },
+        ],
+      },
+      {
+        id: "week4-lesson-2",
+        num: "4.2",
+        title: "Multi-Contract FHE Architecture",
+        objectives: [
+          "Pass encrypted handles between contracts",
+          "Manage ACLs across contract boundaries",
+          "Design solvency proofs with selective revelation",
+        ],
+        content:
+          "Real systems rarely consist of a single contract. A DeFi protocol might have a vault, a registry, a governance module, and a token — all needing to share encrypted state. The key challenge is passing encrypted handles between contracts. When Contract A creates a handle and calls Contract B, B does not have ACL permission on that handle by default. The solution: call FHE.allow(handle, address(contractB)) before making the cross-contract call. The coprocessor does not care about contract boundaries — it only cares about ACLs. For solvency proofs and auditing, a powerful pattern emerges: keep individual amounts encrypted for privacy, but maintain a plaintext running total that anyone can verify. This gives you privacy for individuals and transparency for the system as a whole.",
+        insight:
+          "Cross-contract FHE is an ACL problem, not a crypto problem. Before calling another contract with an encrypted handle, grant it permission. The coprocessor doesn't care about contract boundaries — only ACLs.",
+        code: `<span class="cm">// Contract A: Grant permission before cross-contract call</span>
+<span class="kw">function</span> <span class="fn">setSalary</span>(<span class="ty">address</span> employee, <span class="ty">euint64</span> amount) <span class="kw">external</span> {
+  FHE.<span class="fn">allow</span>(amount, address(registry));  <span class="cm">// grant to Contract B</span>
+  registry.<span class="fn">storeSalary</span>(employee, amount);
+}
+
+<span class="cm">// Contract B (Registry): Can now use the handle</span>
+<span class="kw">function</span> <span class="fn">storeSalary</span>(<span class="ty">address</span> emp, <span class="ty">euint64</span> sal) <span class="kw">external</span> onlyVault {
+  salaries[emp] = sal;
+  FHE.<span class="fn">allowThis</span>(sal);         <span class="cm">// registry can use it</span>
+  FHE.<span class="fn">allow</span>(sal, emp);          <span class="cm">// employee can decrypt</span>
 }`,
-        notes: `Instructor: This is the "Zama Professor's" favorite lesson. Spend the final hour doing a "Bug Bounty" on the whiteboard where you write faulty FHE code and have students find the privacy leak.`,
+        codeFilename: "MultiContract.sol",
+        quiz: [
+          {
+            question:
+              "What must you do before passing an encrypted handle to another contract?",
+            options: [
+              "Call FHE.allow(handle, otherContractAddress)",
+              "Deploy a proxy contract to relay the handle",
+              "Re-encrypt the handle for the target contract",
+              "Nothing — handles are globally accessible",
+            ],
+            correct: 0,
+            explanation:
+              "Encrypted handles have per-address ACLs. Before Contract B can use a handle created by Contract A, A must call FHE.allow(handle, address(B)).",
+          },
+        ],
+      },
+      {
+        id: "week4-lesson-3",
+        num: "4.3",
+        title: "Sepolia Deployment & Testing",
+        objectives: [
+          "Deploy FHE contracts to Sepolia testnet",
+          "Run tests against the real coprocessor",
+          "Verify contracts and debug coprocessor interactions",
+        ],
+        content:
+          "Development uses mock FHE — operations are instant and deterministic, giving you a fast iteration loop. Production uses the real coprocessor on Sepolia. The key differences: the real coprocessor has latency (operations take roughly 10 to 30 seconds to process), gas costs are higher due to actual cryptographic computation, and your contract must inherit SepoliaConfig instead of mock configuration. The deployment flow: first, develop and test everything with mock FHE using Hardhat's local network. Write comprehensive tests that exercise all FHE operations, ACL patterns, and edge cases. Once your mock tests pass, deploy to Sepolia with --network sepolia and validate against the real coprocessor. Expect slower execution and occasionally different gas behavior. Always test with mock first to catch logic errors quickly, then validate on Sepolia to catch coprocessor-specific issues.",
+        insight:
+          "Mock FHE is your development environment — it's instant and deterministic. Sepolia with the real coprocessor is your staging environment. Never skip the mock step.",
+        code: `<span class="cm">// hardhat.config.js — network configuration</span>
+networks: {
+  hardhat: {
+    <span class="cm">// Mock FHE — instant, for development</span>
+  },
+  sepolia: {
+    url: process.env.<span class="fn">SEPOLIA_RPC</span>,
+    accounts: [process.env.<span class="fn">PRIVATE_KEY</span>],
+    <span class="cm">// Real coprocessor — operations take 10-30s</span>
+  }
+}
+
+<span class="cm">// Deploy script</span>
+<span class="kw">const</span> Payroll = <span class="kw">await</span> ethers.<span class="fn">getContractFactory</span>(<span class="str">"PayrollVault"</span>);
+<span class="kw">const</span> payroll = <span class="kw">await</span> Payroll.<span class="fn">deploy</span>();
+console.<span class="fn">log</span>(<span class="str">"Deployed to:"</span>, payroll.target);`,
+        codeFilename: "hardhat.config.js",
+        quiz: [
+          {
+            question:
+              "What's the main difference between mock FHE and the real coprocessor?",
+            options: [
+              "They're functionally identical",
+              "Mock only works with euint8 types",
+              "Mock is instant and deterministic; real coprocessor has latency and costs more gas",
+              "Mock is more secure than the real coprocessor",
+            ],
+            correct: 2,
+            explanation:
+              "Mock FHE provides instant, deterministic results for fast development. The real coprocessor on Sepolia processes operations in 10-30s with higher gas costs.",
+          },
+        ],
       },
     ],
-    homework: {
-      title: "🏆 Capstone: Confidential Mass-Payroll System",
-      level: "Scored 0–100",
-      time: "8–12 hours",
-      desc: "Build a production-grade confidential payroll system where employer deposits are public (for transparency), individual employee salaries are fully encrypted (for privacy), and employees can withdraw their allocation without revealing other employees' salaries.",
-      starter: "https://github.com/zama-ai/fhevm-hardhat-template",
-      grading: [
-        {
-          criterion: "PayrollVault: employer can deposit and fund the contract",
-          points: 10,
-          level: "Functionality",
-        },
-        {
-          criterion:
-            "SalaryRegistry: employer can set encrypted salary for each employee",
-          points: 15,
-          level: "Functionality",
-        },
-        {
-          criterion:
-            "Employee can call withdraw() to receive their encrypted allocation",
-          points: 15,
-          level: "Functionality",
-        },
-        {
-          criterion:
-            "Employees cannot read or compute on other employees' salaries",
-          points: 20,
-          level: "Security",
-        },
-        {
-          criterion:
-            "FHE.allow() / FHE.allowThis() correctly scoped — no over-permissioning",
-          points: 10,
-          level: "Security",
-        },
-        {
-          criterion:
-            "Selective encryption: only salary amounts are euint, rest is plaintext",
-          points: 10,
-          level: "Optimization",
-        },
-        {
-          criterion: "Comprehensive Hardhat test suite (>10 test cases)",
-          points: 10,
-          level: "Tests",
-        },
-        {
-          criterion: "Deployed to Sepolia with verified contract",
-          points: 10,
-          level: "Deployment",
-        },
-      ],
-    },
   },
 ];
 
+const TOTAL_LESSONS = 13;
+
+/* ═══════════════════════════════════════════════════════════
+   COMPONENT
+   ═══════════════════════════════════════════════════════════ */
+
 export default function CurriculumPage() {
-  const [activeWeek, setActiveWeek] = useState(0);
-  const [openLesson, setOpenLesson] = useState(null);
-  const ref = useFadeIn(activeWeek);
+  const { markComplete, isComplete, getWeekProgress } = useProgress();
+  const [expandedLessons, setExpandedLessons] = useState({});
+  const [mobileWeek, setMobileWeek] = useState(0);
+  const containerRef = useFadeIn(expandedLessons);
+  const weekRefs = useRef({});
 
-  const week = WEEKS_DATA[activeWeek];
+  /* count completed */
+  const completedCount = WEEKS.reduce(
+    (acc, week) =>
+      acc + week.lessons.filter((l) => isComplete(l.id)).length,
+    0
+  );
+  const overallPercent = Math.round((completedCount / TOTAL_LESSONS) * 100);
 
-  useEffect(() => {
-    setOpenLesson(null);
-  }, [activeWeek]);
+  /* toggle lesson */
+  const toggleLesson = useCallback((id) => {
+    setExpandedLessons((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
 
-  // Handle hash navigation
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash) {
-      const idx = WEEKS_DATA.findIndex((w) => `#${w.id}` === hash);
-      if (idx !== -1) setActiveWeek(idx);
+  /* scroll to week */
+  const scrollToWeek = useCallback((weekId) => {
+    const el = weekRefs.current[weekId];
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.scrollY - 100;
+      window.scrollTo({ top: y, behavior: "smooth" });
     }
   }, []);
 
   return (
-    <div className="page curriculum-page" ref={ref}>
-      {/* Page Header */}
-      <section className="curriculum-header">
+    <div className="curriculum-page" ref={containerRef}>
+      {/* ── Header ── */}
+      <header className="cur-header">
         <div className="container">
-          <span className="tag tag-purple fade-in">4-Week Curriculum</span>
-          <h1
-            className="section-title fade-in"
-            style={{ marginTop: 16, fontSize: "clamp(32px, 6vw, 56px)" }}
-          >
-            Complete Lesson Plan &<br />
-            <span className="glow-text">Learning Objectives</span>
-          </h1>
-          <p className="section-sub fade-in">
-            Each week includes detailed lesson plans with instructor notes,
-            estimated time commitments, hands-on code examples, and graded
-            homework assignments. Designed for both cohort and self-paced
-            learners.
+          <DecryptText
+            text="Curriculum"
+            as="h1"
+            className="cur-title"
+            delay={0}
+            duration={1000}
+          />
+          <p className="cur-subtitle">
+            4 weeks. 13 lessons. From zero to production-grade confidential
+            smart contracts.
           </p>
-          <div className="curriculum-meta fade-in">
-            <div className="meta-chip">📅 4 Weeks Total</div>
-            <div className="meta-chip">⏱ ~26+ Hours of Learning</div>
-            <div className="meta-chip">🧪 4 Homework Projects</div>
-            <div className="meta-chip">🏆 1 Capstone Project</div>
-          </div>
         </div>
-      </section>
+      </header>
 
-      {/* Week Tabs */}
-      <div className="week-tabs-wrapper">
-        <div className="container">
-          <div className="week-tabs">
-            {WEEKS_DATA.map((w, i) => (
-              <button
-                key={w.id}
-                className={`week-tab week-tab-${w.color}${activeWeek === i ? " active" : ""}`}
-                onClick={() => setActiveWeek(i)}
-              >
-                <span className="tab-num">Week {w.number}</span>
-                <span className="tab-title">{w.title}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Week Content */}
-      <div className="container week-content">
-        {/* Overview */}
-        <div
-          className={`week-overview-card glass-card fade-in border-${week.color}`}
-        >
-          <div className="week-overview-header">
-            <div>
-              <div className={`week-label week-label-${week.color}`}>
-                Week {week.number}
-              </div>
-              <h2>{week.title}</h2>
-              <p className="week-tagline">{week.tagline}</p>
-            </div>
-            <div className="week-overview-meta">
-              <div>
-                <span>📚</span> {week.lessons.length} Lessons
-              </div>
-              <div>
-                <span>⏱</span> {week.homework.time}
-              </div>
-              <div>
-                <span>🧪</span> {week.homework.title}
-              </div>
-            </div>
-          </div>
-          <div className="week-overview-text">
-            <ReactMarkdown>{week.overview}</ReactMarkdown>
-          </div>
-        </div>
-
-        {/* Objectives */}
-        <div className="fade-in">
-          <h3 className="content-heading">🎯 Learning Objectives</h3>
-          <div className="objectives-list">
-            {week.objectives.map((obj, i) => (
-              <div key={i} className="objective-item">
-                <span className={`obj-num obj-num-${week.color}`}>
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span>{obj}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Lessons Accordion */}
-        <div className="fade-in">
-          <h3 className="content-heading">📖 Lesson Plans</h3>
-          <div className="lessons-list">
-            {week.lessons.map((lesson, i) => (
-              <div
-                key={i}
-                className={`accordion-item${openLesson === i ? " open" : ""}`}
-              >
-                <div
-                  className="accordion-header"
-                  onClick={() => setOpenLesson(openLesson === i ? null : i)}
-                >
-                  <div className="lesson-header-content">
-                    <span className={`lesson-num lesson-num-${week.color}`}>
-                      {lesson.num}
-                    </span>
-                    <div>
-                      <div className="lesson-title">{lesson.title}</div>
-                      <div className="lesson-time">⏱ {lesson.time}</div>
-                    </div>
-                  </div>
-                  <span className="chevron">▾</span>
-                </div>
-                <div
-                  className={`accordion-body${openLesson === i ? " open" : ""}`}
-                >
-                  <div
-                    className="lesson-desc"
-                    style={{
-                      color: "var(--text-secondary)",
-                      lineHeight: 1.7,
-                      marginBottom: lesson.code || lesson.notes ? 20 : 0,
-                    }}
-                  >
-                    <ReactMarkdown>{lesson.desc}</ReactMarkdown>
-                  </div>
-                  {lesson.code && (
-                    <div className="code-block" style={{ marginBottom: 20 }}>
-                      <pre
-                        style={{
-                          whiteSpace: "pre-wrap",
-                          color: "var(--text-primary)",
-                        }}
-                      >
-                        {lesson.code}
-                      </pre>
-                    </div>
-                  )}
-                  {lesson.notes && (
-                    <div className="instructor-note">
-                      <span className="note-label">🎓 Instructor Note</span>
-                      <div className="note-text">
-                        <ReactMarkdown>{lesson.notes}</ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Homework */}
-        <div className={`hw-card glass-card fade-in border-${week.color}`}>
-          <div className="hw-header">
-            <div>
-              <span
-                className={`tag tag-${week.color === "cyan" ? "cyan" : week.color === "purple" ? "purple" : "orange"}`}
-              >
-                Homework Assignment
+      {/* ── Two-column layout ── */}
+      <div className="container cur-layout">
+        {/* ── Sidebar ── */}
+        <aside className="cur-sidebar">
+          <div className="cur-sidebar-inner">
+            {/* overall progress */}
+            <div className="cur-overall">
+              <span className="cur-overall-label">
+                {completedCount}/{TOTAL_LESSONS} Lessons Complete
               </span>
-              <h3 className="hw-title">{week.homework.title}</h3>
-              <div className="hw-description">
-                <ReactMarkdown>{week.homework.desc}</ReactMarkdown>
+              <div className="cur-overall-bar">
+                <div
+                  className="cur-overall-fill"
+                  style={{ width: `${overallPercent}%` }}
+                />
               </div>
             </div>
-            <div className="hw-meta">
-              <div>
-                <span className="meta-label">Time Estimate</span>
-                <strong>{week.homework.time}</strong>
-              </div>
-              <div>
-                <span className="meta-label">Grading</span>
-                <strong>{week.homework.level}</strong>
-              </div>
-              <a
-                href={week.homework.starter}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-outline"
-                style={{ fontSize: 13 }}
-              >
-                Get Starter Repo →
-              </a>
-            </div>
-          </div>
 
-          <h4
-            style={{
-              marginBottom: 14,
-              color: "var(--text-secondary)",
-              fontSize: 13,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-            }}
-          >
-            Grading Rubric
-          </h4>
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Criterion</th>
-                  <th>Points</th>
-                  <th>Level</th>
-                </tr>
-              </thead>
-              <tbody>
-                {week.homework.grading.map((g, i) => (
-                  <tr key={i}>
-                    <td>{g.criterion}</td>
-                    <td>
-                      <strong style={{ color: "var(--cyan)" }}>
-                        {g.points}
-                      </strong>
-                    </td>
-                    <td>
-                      <span
-                        className={`tag ${g.level === "Pass" || g.level === "Functionality" ? "tag-cyan" : g.level === "Excellent" || g.level === "Security" ? "tag-purple" : g.level === "Optimization" ? "tag-orange" : "tag-cyan"}`}
-                        style={{ fontSize: 11 }}
-                      >
-                        {g.level}
+            {/* week nav */}
+            <nav className="cur-week-nav">
+              {WEEKS.map((week) => {
+                const wp = getWeekProgress(week.id, week.lessons.length);
+                return (
+                  <button
+                    key={week.id}
+                    className="cur-week-btn"
+                    onClick={() => scrollToWeek(week.id)}
+                  >
+                    <ProgressCircle percent={wp.percent} />
+                    <div className="cur-week-btn-text">
+                      <span className="cur-week-btn-num">
+                        Week {week.number}
                       </span>
-                    </td>
-                  </tr>
-                ))}
-                <tr>
-                  <td>
-                    <strong>Total</strong>
-                  </td>
-                  <td>
-                    <strong style={{ color: "var(--cyan)" }}>
-                      {week.homework.grading.reduce((s, g) => s + g.points, 0)}
-                    </strong>
-                  </td>
-                  <td></td>
-                </tr>
-              </tbody>
-            </table>
+                      <span className="cur-week-btn-title">
+                        {week.title}
+                      </span>
+                      <span className="cur-week-btn-count">
+                        {wp.completed}/{wp.total} lessons
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </nav>
           </div>
+        </aside>
+
+        {/* ── Mobile week selector ── */}
+        <div className="cur-mobile-selector">
+          {WEEKS.map((week, i) => (
+            <button
+              key={week.id}
+              className={`cur-mobile-week${mobileWeek === i ? " active" : ""}`}
+              onClick={() => {
+                setMobileWeek(i);
+                scrollToWeek(week.id);
+              }}
+            >
+              W{week.number}
+            </button>
+          ))}
         </div>
 
-        {/* Nav */}
-        <div className="week-nav fade-in">
-          <button
-            className="btn-outline"
-            onClick={() => setActiveWeek(Math.max(0, activeWeek - 1))}
-            disabled={activeWeek === 0}
-          >
-            ← Previous Week
-          </button>
-          <Link to="/homework" className="btn-outline">
-            View All Homework Specs
-          </Link>
-          <button
-            className="btn-primary"
-            onClick={() =>
-              setActiveWeek(Math.min(WEEKS_DATA.length - 1, activeWeek + 1))
-            }
-            disabled={activeWeek === WEEKS_DATA.length - 1}
-          >
-            Next Week →
-          </button>
-        </div>
+        {/* ── Main content ── */}
+        <main className="cur-main">
+          {WEEKS.map((week) => {
+            const wp = getWeekProgress(week.id, week.lessons.length);
+            return (
+              <section
+                key={week.id}
+                className="cur-week-section fade-in"
+                ref={(el) => (weekRefs.current[week.id] = el)}
+              >
+                {/* week header */}
+                <div className="cur-week-header">
+                  <div className="cur-week-header-top">
+                    <span className="cur-week-number">
+                      Week {String(week.number).padStart(2, "0")}
+                    </span>
+                    <span
+                      className={`cur-week-badge${
+                        wp.percent === 100 ? " complete" : ""
+                      }`}
+                    >
+                      {wp.percent === 100
+                        ? "Complete"
+                        : `${wp.completed}/${wp.total}`}
+                    </span>
+                  </div>
+                  <h2 className="cur-week-title">{week.title}</h2>
+                  <p className="cur-week-subtitle">{week.subtitle}</p>
+                </div>
+
+                {/* lessons */}
+                <div className="cur-lessons">
+                  {week.lessons.map((lesson) => {
+                    const isExpanded = !!expandedLessons[lesson.id];
+                    const done = isComplete(lesson.id);
+                    return (
+                      <div
+                        key={lesson.id}
+                        className={`cur-lesson${isExpanded ? " expanded" : ""}${
+                          done ? " completed" : ""
+                        }`}
+                      >
+                        {/* lesson header (click to toggle) */}
+                        <button
+                          className="cur-lesson-header"
+                          onClick={() => toggleLesson(lesson.id)}
+                          aria-expanded={isExpanded}
+                        >
+                          <span className="cur-lesson-num">{lesson.num}</span>
+                          <span className="cur-lesson-title">
+                            {lesson.title}
+                          </span>
+                          <span className="cur-lesson-status">
+                            {done && (
+                              <span className="cur-lesson-check">
+                                &#10003;
+                              </span>
+                            )}
+                            <span
+                              className={`cur-lesson-chevron${
+                                isExpanded ? " open" : ""
+                              }`}
+                            >
+                              &#9662;
+                            </span>
+                          </span>
+                        </button>
+
+                        {/* lesson body */}
+                        <div
+                          className="cur-lesson-body"
+                          style={{
+                            maxHeight: isExpanded ? "4000px" : "0",
+                          }}
+                        >
+                          <div className="cur-lesson-inner">
+                            {/* objectives */}
+                            <div className="cur-objectives">
+                              <h4 className="cur-section-label">
+                                Learning Objectives
+                              </h4>
+                              <ul className="cur-obj-list">
+                                {lesson.objectives.map((obj, i) => (
+                                  <li key={i} className="cur-obj-item">
+                                    <span className="cur-obj-bullet" />
+                                    {obj}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {/* content */}
+                            <div className="cur-content-block">
+                              <p className="cur-content-text">
+                                {lesson.content}
+                              </p>
+                            </div>
+
+                            {/* code example */}
+                            <CodeBlock
+                              code={lesson.code}
+                              language="solidity"
+                              filename={lesson.codeFilename}
+                            />
+
+                            {/* key insight */}
+                            <div className="cur-insight">
+                              <span className="cur-insight-label">
+                                Key Insight
+                              </span>
+                              <p className="cur-insight-text">
+                                {lesson.insight}
+                              </p>
+                            </div>
+
+                            {/* quiz */}
+                            <Quiz
+                              questions={lesson.quiz}
+                              lessonId={lesson.id}
+                              onPass={() => {}}
+                            />
+
+                            {/* mark complete */}
+                            <div className="cur-complete-row">
+                              {done ? (
+                                <span className="cur-done-label">
+                                  Lesson complete
+                                </span>
+                              ) : (
+                                <button
+                                  className="btn-primary cur-complete-btn"
+                                  onClick={() => markComplete(lesson.id)}
+                                >
+                                  Mark as Complete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+
+          {/* ── Completion Celebration ── */}
+          {completedCount === TOTAL_LESSONS && (
+            <div className="cur-completion fade-in visible">
+              <div className="cur-completion-inner">
+                <DecryptText
+                  text="VAULT UNLOCKED"
+                  as="span"
+                  className="cur-completion-tag"
+                  delay={200}
+                  duration={1500}
+                />
+                <h2 className="cur-completion-title">
+                  You've completed the entire curriculum.
+                </h2>
+                <p className="cur-completion-text">
+                  13 lessons. 4 weeks of FHE mastery. You now have the knowledge
+                  to build production-grade confidential smart contracts on
+                  Zama's FHEVM — from encrypted tokens to dark pool AMMs to
+                  multi-contract payroll systems.
+                </p>
+                <p className="cur-completion-text">
+                  The next step is yours: pick a homework assignment, clone the
+                  Hardhat template, and start building. The infrastructure is
+                  ready. So are you.
+                </p>
+                <div className="cur-completion-actions">
+                  <a
+                    href="https://github.com/zama-ai/fhevm-hardhat-template"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-primary"
+                  >
+                    Clone Template & Build
+                  </a>
+                  <a href="/homework" className="btn-outline">
+                    View Homework Specs
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

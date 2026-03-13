@@ -5,8 +5,7 @@ import Footer from "./components/Footer";
 import HomePage from "./pages/HomePage";
 import CurriculumPage from "./pages/CurriculumPage";
 import HomeworkPage from "./pages/HomeworkPage";
-import InstructorPage from "./pages/InstructorPage";
-import VideoScriptPage from "./pages/VideoScriptPage";
+import ResourcesPage from "./pages/ResourcesPage";
 import "./App.css";
 
 function ScrollToTop() {
@@ -26,8 +25,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/curriculum" element={<CurriculumPage />} />
         <Route path="/homework" element={<HomeworkPage />} />
-        <Route path="/instructor" element={<InstructorPage />} />
-        <Route path="/video-script" element={<VideoScriptPage />} />
+        <Route path="/resources" element={<ResourcesPage />} />
       </Routes>
       <Footer />
     </>
