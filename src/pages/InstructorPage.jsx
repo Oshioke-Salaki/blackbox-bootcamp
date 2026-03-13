@@ -60,6 +60,18 @@ const COMMON_MISTAKES = [
       "Students who over-encrypt (e.g., encrypting employee IDs, timestamps, public addresses) drive gas costs through the roof and sometimes hit the FHE compute limit.",
     fix: "Lesson 4.1 covers selective encryption. Do a live gas comparison between an over-encrypted and correctly encrypted struct. The 60–70% gas reduction shocks students into compliance.",
   },
+  {
+    mistake: "The 'View-Function' Pointer Leak",
+    explanation:
+      "Advanced students often write public view functions that return euint64 handles without verifying the identity of the caller. In FHE, the handle is a pointer; if a malicious user gets someone else's handle, they can attempt to decrypt it via the Relayer if the ACL isn't strictly enforced.",
+    fix: "Always use FHE.isSenderAllowed(handle) inside view functions. This ensures the Relayer only returns plaintext if the person requesting the decryption actually has the ACL rights to that specific handle.",
+  },
+  {
+    mistake: "Ignoring ERC7984 Standards for RWA tokens",
+    explanation:
+      "Students building professional assets often miss the standardized re-encryption events required for wallet compatibility. This makes their tokens 'invisible' to third-party FHE explorers.",
+    fix: "Provide the ERC7984 interface in the Master Template. Require students to inherit from it and emit the standardized 'AuthorizedDecryption' events.",
+  },
 ];
 
 const COHORT_TIPS = [
@@ -131,6 +143,12 @@ const TEMPLATES = [
     desc: "Reference solutions for all 4 weeks — to be released after each homework deadline. For instructors only until then.",
     url: "https://github.com/zama-ai/fhevm-hardhat-template",
     icon: "✅",
+  },
+  {
+    name: "Master Audit & RWA Template",
+    desc: "Expert-tier scaffold for the Institutional-Grade assignment. Includes BrokenPool.sol for the audit challenge.",
+    url: "https://tomi204.gitbook.io/fhe-hub-examples",
+    icon: "🏦",
   },
 ];
 

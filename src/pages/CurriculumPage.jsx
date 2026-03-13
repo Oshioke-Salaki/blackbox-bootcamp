@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 import "./CurriculumPage.css";
 
 function useFadeIn(dep) {
@@ -42,94 +43,114 @@ const WEEKS_DATA = [
     lessons: [
       {
         num: "1.1",
-        title: "Introduction to Confidential dApps",
-        time: "45 min",
-        desc: "Master logic: Host Chain (Sepolia) vs Gateway (ChainID 10901). We begin by dismantling the 'Public Ledger' myth and explaining why true on-chain privacy is the final frontier of Web3. Students learn the high-level architecture of how Zama's FHE coprocessor executes encrypted logic while the host chain remains the source of truth.",
-        notes: `Instructor: Start with a provocative question — "If I told you that yesterday you sent $50,000 to this address, and anyone can see that — how do you feel?" Use block explorer screenshots of real mainnet transactions. The emotional impact is immediate and sets up the entire course motivation.`,
+        title: "The FHE Coprocessor Paradigm",
+        time: "55 min",
+        desc: `Stop thinking of the EVM as a general-purpose CPU. In FHEVM, think of the EVM as a "Host" that delegates hard crypto math to a "Coprocessor" (The Gateway). 
+
+### How it Works:
+1. **The Handle**: When you work with a 'euint64', you aren't holding a number; you're holding a **pointer** (a handle) to a ciphertext stored in the Coprocessor's memory.
+2. **The Execution**: You tell the Coprocessor: "Add handle A and handle B." It performs the math in its secure environment and returns a **NEW handle C**.
+3. **The Result**: The EVM only sees A, B, and C. They are just opaque hex strings to the EVM. It can move them, store them, or send them—but it can NEVER look inside them.`,
+        notes: `Instructor: This is the most important mental model shift. Use an analogy: It's like a blind accountant. You (the EVM) give them two sealed envelopes (handles), they do the math without opening them, and give you back a third sealed envelope (the result). You know the envelopes contain data, but you never see the numbers.
+
+**Key Learning Objective**: By the end of this lesson, students should be able to explain why 'euint64' is technically a bytes32 pointer and why 'msg.sender' is the only thing the EVM actually "knows" for sure.`,
       },
       {
         num: "1.2",
-        title: "Encrypted Types Deep Dive",
-        time: "40 min",
-        desc: "Hands-on exploration of euint8 through euint256, ebool, and eaddress. We cover declaration, initialization from plaintext (FHE.asEuint64), and initialization from user-supplied encrypted input via externalEuint64 + FHE.fromExternal(). Critical: contracts must inherit ZamaEthereumConfig for proper coprocessor wiring. The isInitialized() helper prevents operating on unset encrypted variables.",
+        title: "Encrypted Primitives & Lifecycle",
+        time: "60 min",
+        desc: `Every confidential variable goes through a rigorous lifecycle. You cannot just "make a number private."
+
+### The Three States of Data:
+1. **Plaintext (uint64)**: Visible to everyone. Used for non-sensitive data (timestamps, ID numbers).
+2. **External Ciphertext (externalEuint64)**: Data incoming from a user. It comes with a **ZK-Proof** that proves the user knows the number and it's within bounds (e.g., fits in 64 bits).
+3. **Internal Handle (euint64)**: Validated data ready for math.
+
+### Implementation Checklist:
+- [ ] Must inherit 'ZamaEthereumConfig' (Initializes the coprocessor link).
+- [ ] Use 'FHE.fromExternal(input, proof)' to bridge from User to Contract.
+- [ ] Use 'FHE.allowThis(handle)' to grant the contract permission to use the handle in the next transaction.
+- [ ] Use 'FHE.isInitialized(handle)' to prevent null-pointer errors in crypto math.`,
         code: `import "@fhevm/solidity/lib/FHE.sol";
 import "@fhevm/solidity/config/ZamaEthereumConfig.sol";
 
-// Inherit ZamaEthereumConfig — wires the FHE coprocessor automatically
-contract MyContract is ZamaEthereumConfig {
-  euint64  private _balance;
-  ebool    private _isKycVerified;
-  eaddress private _hiddenRecipient;
+contract DeepDive is ZamaEthereumConfig {
+    euint64 private _secretVal;
 
-  // Expert Secret: Always verify handles are initialized
-  function updateValue(euint64 newValue) external {
-    if (FHE.isInitialized(newValue)) {
-      _value = newValue;
-      FHE.allowThis(_value);
+    // STEP 1: Accepts ENCRYPTED input from user
+    function secureInit(externalEuint64 encVal, bytes calldata proof) external {
+        // STEP 2: Validation (ZK-Proof Check)
+        // returns a handles (pointer) if proof is valid, else reverts
+        euint64 validatedHandle = FHE.fromExternal(encVal, proof);
+
+        // STEP 3: Initializing state
+        // Always check if it's the first time
+        if (!FHE.isInitialized(_secretVal)) {
+            _secretVal = validatedHandle;
+        } else {
+             _secretVal = FHE.add(_secretVal, validatedHandle);
+        }
+
+        // STEP 4: ACL (Granting Permissions)
+        // Without this, the contract can't use _secretVal in the NEXT call
+        FHE.allowThis(_secretVal);
+        
+        // Grant sender the right to "view" their own encrypted state later
+        FHE.allow(_secretVal, msg.sender);
     }
-  }
-
-  // Initializing from plaintext (admin/owner only)
-  function init() external onlyOwner {
-    _balance = FHE.asEuint64(1000);
-    FHE.allowThis(_balance);         // grant the contract compute access
-  }
-
-  // Initializing from user-supplied encrypted input
-  // externalEuint64 is the new type — replaces the old 'einput' type
-  function deposit(externalEuint64 encAmount, bytes calldata proof) external {
-    // FHE.fromExternal validates the ZK proof and returns a euint64 handle
-    euint64 amount = FHE.fromExternal(encAmount, proof);
-
-    // isInitialized: check before operating on handle
-    if (FHE.isInitialized(_balance)) {
-      _balance = FHE.add(_balance, amount);
-    } else {
-      _balance = amount;
-    }
-    FHE.allowThis(_balance);         // re-grant after mutation
-    FHE.allow(_balance, msg.sender); // depositor can view their balance
-  }
 }`,
-        notes:
-          "Instructor: Key change from older FHEVM: the input type is now externalEuint64 (not 'einput'), and FHE.fromExternal() replaces TFHE.asEuint64(einput, proof). Also always emphasize ZamaEthereumConfig — without it, FHE.setCoprocessor is never called and FHE operations silently fail on testnet.",
+        notes: `Instructor: Focus on the "Double-Spend of Permissions". Students often think FHE.allow() is like a database permission. It's not. It's a cryptographic grant. 
+
+Explain that every time _secretVal is updated (mutated), it gets a **NEW handle ID**. The old permission for the old ID is now useless. You MUST call FHE.allowThis() again after every update. No re-grant = silent failure.`,
       },
       {
         num: "1.3",
-        title: 'The "No Revert" Rule — FHE.select',
-        time: "50 min",
-        desc: `This is the most critical lesson in Week 1. In standard Solidity, you might write: require(balance >= amount). In fhEVM, this pattern leaks data — a transaction revert tells an observer "the balance was too low." Instead, we use FHE.select to conditionally update state without branching. The transaction always succeeds; it simply does nothing if the condition is false.`,
-        code: `// ❌ WRONG — leaks information via revert
-function badTransfer(euint64 amount) internal {
-  ebool sufficient = FHE.le(amount, _balance);
-  // You cannot require() on an ebool!
-  // Even if you could: a revert reveals balance < amount
-}
+        title: "Programming Without Branches (FHE.select)",
+        time: "60 min",
+        desc: `The "No Revert" rule is the hardest bridge to cross. In Solidity, you write 'if (x > y) revert()'. In FHEVM, you cannot do this.
 
-// ✅ CORRECT — silent, private, no information leak
-function transfer(address to, externalEuint64 encAmount, bytes calldata proof) external {
-  euint64 amount    = FHE.fromExternal(encAmount, proof);
-  ebool sufficient  = FHE.le(amount, _balance);
+### Why? 
+Because 'x > y' returns an 'ebool'. An 'ebool' is just another sealed envelope. The EVM cannot "open" the envelope to decide whether to revert. If you forced a revert based on an ebool, the miner would have to know the value, which breaks all privacy.
 
-  // Sender: subtract if sufficient, else keep unchanged
-  _balance = FHE.select(
-    sufficient,
-    FHE.sub(_balance, amount),
-    _balance
-  );
-  // Recipient: add if sufficient, else unchanged
-  _balances[to] = FHE.select(
-    sufficient,
-    FHE.add(_balances[to], amount),
-    _balances[to]
-  );
-  // Re-grant ACL after every FHE mutation
-  FHE.allowThis(_balance);
-  FHE.allow(_balances[to], to);
-  // Transaction always succeeds — no revert, no leak
+### The Solution: Deterministic State Updates
+We update the state regardless, but we use 'FHE.select' to decide **which** value to store:
+- If 'condition' is true -> store 'CalculatedNewValue'
+- If 'condition' is false -> store 'OriginalOldValue' (effectively a no-op)
+
+The gas cost is the same for both paths. Privacy is preserved perfectly.`,
+        code: `function privateTransfer(address to, externalEuint64 encAmount, bytes calldata proof) external {
+    euint64 amount = FHE.fromExternal(encAmount, proof);
+    
+    // Returns an encrypted boolean handle (the envelope)
+    ebool hasFunds = FHE.le(amount, _balances[msg.sender]);
+
+    // Update Sender: 
+    // If hasFunds is true  -> _balances - amount
+    // If hasFunds is false -> _balances (no change)
+    _balances[msg.sender] = FHE.select(
+        hasFunds, 
+        FHE.sub(_balances[msg.sender], amount), 
+        _balances[msg.sender]
+    );
+
+    // Update Recipient:
+    _balances[to] = FHE.select(
+        hasFunds, 
+        FHE.add(_balances[to], amount), 
+        _balances[to]
+    );
+
+    // MASTER RULE: Re-grant ACL after EVERY update
+    FHE.allowThis(_balances[msg.sender]);
+    FHE.allowThis(_balances[to]);
+    
+    // We also grant the users access to view their new balances
+    FHE.allow(_balances[msg.sender], msg.sender);
+    FHE.allow(_balances[to], to);
 }`,
-        notes:
-          'Instructor: The "No Revert" rule is counterintuitive and takes 20 minutes to internalize. Run a live demo showing gas on both paths — identical gas proves the EVM sees no difference. Also note: FHE.allowThis() is shorthand for FHE.allow(handle, address(this)), a new convenience function in the current library.',
+        notes: `Instructor: This is a "Step-by-Step" live coding exercise. Write the "Standard Solidity" version with reverts first, then "Refactor" it live into the FHE.select pattern. Show the students that 'transfer' now NEVER fails. Not enough funds? The transaction succeeds, but the balance doesn't move. 
+
+**Student Challenge**: Ask them how they would inform the user the transfer "failed" if the transaction succeeded. (Answer: They check their balance off-chain and see it didn't change).`,
       },
       {
         num: "1.4",
@@ -218,125 +239,154 @@ npx hardhat deploy --network sepolia
     lessons: [
       {
         num: "2.1",
-        title: "The Complete TFHE Arithmetic API",
-        time: "40 min",
-        desc: "Systematic coverage of all arithmetic operations. Students learn that FHE arithmetic operates identically to Solidity arithmetic — with the same overflow behavior — but on ciphertexts. Special attention to FHE.neg (two's complement) and FHE.not (bitwise NOT), which are often overlooked.",
-        code: `euint64 a = FHE.asEuint64(100);
-euint64 b = FHE.asEuint64(30);
+        title: "The Math of Confidentiality",
+        time: "55 min",
+        desc: `Encryption usually makes numbers hard to use. Zama's FHE allows for full homomorphic arithmetic, but with a few "Expert" constraints.
 
-euint64 sum  = FHE.add(a, b);   // 130
-euint64 diff = FHE.sub(a, b);   // 70
-euint64 prod = FHE.mul(a, b);   // 3000  ← expensive!
-euint64 div  = FHE.div(a, b);   // 3
-euint64 rem  = FHE.rem(a, b);   // 10
+### The Arithmetic Suite:
+- **Cheap**: 'FHE.add', 'FHE.sub', 'FHE.not', 'FHE.and/or/xor' (Fastest).
+- **Moderate**: 'FHE.mul' (Costly due to Noise Management).
+- **Expensive**: 'FHE.div', 'FHE.rem' (Avoid inside large loops).
+- **Secret Skill**: Bit-shifting logic via arithmetic.
 
-// Bitwise operations
-euint64 andOp = FHE.and(a, b);
-euint64 orOp  = FHE.or(a, b);
-euint64 xorOp = FHE.xor(a, b);
-euint64 negA  = FHE.neg(a);    // two's complement
-euint64 notA  = FHE.not(a);    // bitwise NOT
+### The Problem of "Noise":
+Every time you perform 'FHE.mul', you add "Noise" to the ciphertext. Too much noise makes the handle unreadable. Zama handles "Bootstrap" logic automatically, but graduates must learn to minimize multiplications to keep gas costs low.`,
+        code: `// Multi-tier arithmetic example
+function calculateFee(euint64 amount, uint64 feeBps) external returns (euint64) {
+    // 1. Plaintext + Encrypted interop is the most efficient
+    // FHE.mul(euint64, uint64) is cheaper than FHE.mul(euint64, euint64)
+    euint64 fee = FHE.div(FHE.mul(amount, feeBps), 10000);
+    
+    // 2. Safe subtraction (Prevention of underflow)
+    ebool hasEnough = FHE.ge(amount, fee);
+    return FHE.select(hasEnough, FHE.sub(amount, fee), FHE.asEuint64(0));
+}`,
+        notes: `Instructor: This is where we introduce the "Noise" concept. You don't need to be a cryptographer, but you must know that multiplications are "loud." 
 
-// Casting between encrypted and larger types
-ebool   flag = FHE.asEbool(a);    // euint64 → ebool
-euint128 big = FHE.asEuint128(a); // widen to 128-bit (available!)`,
-        notes:
-          "Instructor: Show gas benchmarks! FHE.mul is 3–5x more expensive than FHE.add. Students should minimize multiplications. Also note that euint128 and euint256 are available — important for the Week 4 payroll capstone where salary × employees could overflow uint64.",
+**Student Challenge**: Ask them to refactor 'FHE.mul(x, 2)' into 'FHE.add(x, x)' and compare the gas cost. (Answer: Adding is significantly cheaper, and in FHE, bit-shifts aren't free like they are in Solidity).`,
       },
       {
         num: "2.2",
-        title: "Encrypted Comparisons & Boolean Algebra",
-        time: "45 min",
-        desc: "All comparisons return ebool — an encrypted boolean. These can be combined with FHE.and, FHE.or, FHE.xor to build complex conditions. The key insight: you can compose arbitrarily complex logic without ever branching execution. The result is always a single ebool passed to FHE.select.",
-        code: `euint64 price = ...; euint64 maxSlippage = ...; euint64 reserve = ...;
+        title: "Compound Comparisons & Boolean Masking",
+        time: "60 min",
+        desc: `In FHE, boolean logic is the steering wheel. Since you can't use 'if' statements, you must "Mask" your data.
 
-// Complex condition without any branching
-ebool priceOk   = FHE.le(price, maxSlippage);
-ebool reserveOk = FHE.ge(reserve, price);
-ebool bothOk    = FHE.and(priceOk, reserveOk);
+### Comparison Essentials:
+- 'FHE.eq/ne' (Equality)
+- 'FHE.lt/le/gt/ge' (Inequality)
+- 'FHE.min/max' (Utility wrappers)
 
-// Execute trade only if both conditions are met
-euint64 newReserve = FHE.select(
-  bothOk,
-  FHE.sub(reserve, price),
-  reserve    // unchanged if conditions not met
-);
+### Boolean Algebra:
+Think of 'ebool' as a **filter**. You can stack conditions using bitwise operators ('&', '|', '^') to create highly complex decision trees that the miner can never see.`,
+        code: `// Compound Logic without Branching
+function validatePosition(euint64 price, euint64 collateral) external returns (ebool) {
+    ebool isPriceStable = FHE.lt(price, FHE.asEuint64(10000));
+    ebool isSolvent     = FHE.gt(collateral, FHE.mul(price, 150)); // 150% ratio
+    
+    // Compose the mask
+    ebool isSafe = FHE.and(isPriceStable, isSolvent);
+    
+    // We don't revert. We return the mask.
+    return isSafe;
+}`,
+        notes: `Instructor: Use a "Filtering" metaphor. Imagine three filters (boolean handles) stacked on top of each other. Only if light (the transaction) passes through all three do we update the final state. 
 
-// FHE.select always evaluates BOTH branches — the selection is hidden
-// This is fundamentally different from if/else — no path is revealed`,
-        notes:
-          "Instructor: This pattern is the backbone of every complex confidential contract. Spend 15 extra minutes having students write their own compound conditions on a whiteboard before touching code.",
+**Expert Tip**: Mention that 'FHE.asEbool()' exists, but most seniors prefer staying in 'euint' space using 0 and 1 for easier math integration.`,
       },
       {
         num: "2.3",
-        title: "Overflow Safety & Encrypted Range Checks",
-        time: "35 min",
-        topics: [
-          "FHE.add, sub, mul, div, rem",
-          "FHE.le, lt, ge, gt, eq, ne",
-          "Secure Encrypted Randomness (FHE.rand)",
-          "Dark Pool AMM mechanics",
-        ],
-        desc: "FHE operations silently wrap on overflow (like unchecked Solidity). Students learn to use FHE.le to pre-validate that addition will not overflow, then use FHE.select to gate the update. These safe wrappers are essential for production payroll and DeFi contracts.",
-        code: `// Safe add: only keep result if it didn't overflow
-function safeAdd(euint64 a, euint64 b) internal returns (euint64) {
-  euint64 result  = FHE.add(a, b);
-  ebool   wrapped = FHE.lt(result, a); // if result < a, it wrapped
-  return FHE.select(wrapped, a, result); // keep original on overflow
-}
+        title: "Safe Math & Noise Management",
+        time: "50 min",
+        desc: `FHE handles wrap on overflow silently (just like Solidity <0.8). However, because you can't 'assert()', you must build "Safe Proofs" into your math logic.
 
-// Safe sub: only subtract if balance is sufficient
-function safeSub(euint64 a, euint64 b) internal returns (euint64) {
-  ebool sufficient = FHE.le(b, a);
-  return FHE.select(sufficient, FHE.sub(a, b), a);
+### Expert Patterns:
+1. **Saturation**: If overflow occurs, return 'type(uint).max' instead of wrapping.
+2. **Handle Re-use**: Avoid repeating the same math. Store the handle in a variable to save gas.
+3. **Randomness**: Use 'FHE.rand()' for secure, private on-chain randomness if needed.`,
+        code: `function safeAdd(euint64 a, euint64 b) internal returns (euint64) {
+    euint64 res = FHE.add(a, b);
+    // If res < a, it overflowed
+    ebool overflowed = FHE.lt(res, a);
+    
+    return FHE.select(overflowed, FHE.asEuint64(type(uint64).max), res);
 }`,
-        notes:
-          "Instructor: Ask students why overflow wraps instead of reverts. Answer: the EVM cannot know the plaintext to decide whether to revert — there is no plaintext available at compute time. This is why defensive encrypted math matters.",
+        notes: `Instructor: This lesson connects math to security. If a payroll contract overflows, someone's salary could wrap to 0. In FHE, this is a "Silent Failure." Always use saturation patterns in production.`,
       },
       {
         num: "2.4",
-        title: "Dark Pool AMM Architecture",
-        time: "60 min",
-        desc: "Apply everything from 2.1–2.3 to design a confidential token swap. In a Dark Pool, the trade size, direction, and slippage tolerance are all encrypted. This prevents MEV bots from front-running trades (they cannot see the price impact). We design the reserve update logic using masked arithmetic.",
-        code: `struct Pool {
-  euint64 reserveA;   // encrypted reserve of Token A
-  euint64 reserveB;   // encrypted reserve of Token B
-}
+        title: "Dark Pool AMM: Secret Reserves",
+        time: "75 min",
+        desc: `Dark Pools are the "Grand Stage" for Week 2. We hide the Price, the Reserves, and the Volume.
 
-function swap(
-  externalEuint64 encAmountIn, // user-provided encrypted input (new type)
-  bytes calldata  proof,        // ZK knowledge proof
-  bool            aToB
-) external {
-  // FHE.fromExternal: validates proof and returns a usable euint64
-  euint64 amount = FHE.fromExternal(encAmountIn, proof);
+### Why this changes DeFi:
+In a public pool (Uniswap), bots see your swap and front-run you. In a Zama Dark Pool, the trade amount is a ciphertext. The bot doesn't know if you're buying or selling until the trade is already complete.
 
-  // Constant product formula: Δy = y * Δx / (x + Δx)
-  euint64 poolIn  = aToB ? pool.reserveA : pool.reserveB;
-  euint64 poolOut = aToB ? pool.reserveB : pool.reserveA;
+### Implementation Checklist:
+- [x] 'x * y = k' check via FHE math.
+- [x] 'externalEuint64' for private trade entry.
+- [x] 'FHE.select' for reserve updates.`,
+        code: `// Dark Pool: The Secret Swap
+function swap(externalEuint64 encIn, bytes calldata proof) external {
+    euint64 amountIn = FHE.fromExternal(encIn, proof);
+    
+    // Constant Product Math: dy = (y * dx) / (x + dx)
+    euint64 amountOut = FHE.div(
+        FHE.mul(_reserveY, amountIn), 
+        FHE.add(_reserveX, amountIn)
+    );
 
-  euint64 numerator   = FHE.mul(poolOut, amount);
-  euint64 denominator = FHE.add(poolIn, amount);
-  euint64 amountOut   = FHE.div(numerator, denominator);
-
-  // Validity guard — no revert, uses FHE.select silently
-  ebool valid = FHE.and(
-    FHE.gt(amountOut, FHE.asEuint64(0)),
-    FHE.le(amountOut, poolOut)
-  );
-
-  if (aToB) {
-    pool.reserveA = FHE.select(valid, FHE.add(pool.reserveA, amount),    pool.reserveA);
-    pool.reserveB = FHE.select(valid, FHE.sub(pool.reserveB, amountOut), pool.reserveB);
-  } else {
-    pool.reserveB = FHE.select(valid, FHE.add(pool.reserveB, amount),    pool.reserveB);
-    pool.reserveA = FHE.select(valid, FHE.sub(pool.reserveA, amountOut), pool.reserveA);
-  }
-  FHE.allowThis(pool.reserveA);
-  FHE.allowThis(pool.reserveB);
+    // Slippage Guard (Silent)
+    ebool ok = FHE.gt(amountOut, _minReceive);
+    
+    // Atomic Private Swaps
+    _reserveX = FHE.add(_reserveX, amountIn);
+    _reserveY = FHE.select(ok, FHE.sub(_reserveY, amountOut), _reserveY);
+    
+    // Re-grant ACL
+    FHE.allowThis(_reserveX); FHE.allowThis(_reserveY);
 }`,
-        notes:
-          'Instructor: The Dark Pool AMM is the killer app example. Before showing code, ask: "How do MEV bots extract value in a normal DEX?" (front-run via mempool). Then reveal: with externalEuint64 inputs, the bot cannot see the amount until finalization — too late to front-run.',
+        notes: `Instructor: This is the high point. Students often ask "How does the user get their tokens if the contract doesn't know how many to send?" 
+        
+Answer: The tokens *are* sent, but their balance is just another encrypted ciphertext handle. The user sees their balance change in Week 3's decryption lesson.`,
+      },
+      {
+        num: "2.5",
+        title: "Confidential Dutch Auctions",
+        time: "60 min",
+        desc: `Unlike Blind Auctions, Dutch Auctions have a descending price curve. In FHE, we hide the **Strike Price** and the **Bid Timing**.
+
+### Expert Logic:
+1. **Time-Variant Pricing**: The 'currentPrice' is a public function of block.timestamp.
+2. **Encrypted Bids**: Bidders submit 'externalEuint64'.
+3. **Atomic Settlement**: If 'bid >= currentPrice', the trade executes. This comparison happens in the Coprocessor using 'FHE.ge'.`,
+        code: `// Dutch Auction: Descending Price Curve
+function buyAtCurrentPrice(externalEuint64 encBid, bytes calldata proof) external {
+    uint256 publicPrice = getCurrentPrice(); // Descending public curve
+    euint64 bid = FHE.fromExternal(encBid, proof);
+    
+    // strike = (bid >= publicPrice)
+    ebool isSuccessful = FHE.ge(bid, FHE.asEuint64(publicPrice));
+    
+    // Transfer logic gated by isSuccessful
+    _balances[msg.sender] = FHE.select(isSuccessful, FHE.add(_balances[msg.sender], _amountToSell), _balances[msg.sender]);
+    FHE.allowThis(_balances[msg.sender]);
+}`,
+        notes: `Instructor: This teaches students how to combine **Public State** (time-based price) with **Private State** (user bid). It's a hybrid model that is extremely gas-efficient.`,
+      },
+      {
+        num: "2.6",
+        title: "AMM Optimization: Plaintext Denominators",
+        time: "55 min",
+        desc: `Gas is war. 'FHE.div(euint64, euint64)' is significantly more expensive than 'FHE.div(euint64, uint64)'.
+
+### The Professor's Trick:
+If your denominator is a public constant (like a 3% fee or a fixed liquidity divisor), **never** cast it to an 'euint'. Use the plaintext version of the division operator. This can save up to 80% on the division's gas cost.`,
+        code: `// ✓ CORRECT (Optimized)
+euint64 result = FHE.div(encryptedNumerator, 100); 
+
+// ✗ WRONG (Expensive)
+euint64 result = FHE.div(encryptedNumerator, FHE.asEuint64(100));`,
+        notes: `Instructor: This is a "Zama Pro" tip. Always look for ways to keep constants in plaintext. The Coprocessor optimizations for plaintext-operand operations are massive.`,
       },
     ],
     homework: {
@@ -399,129 +449,138 @@ function swap(
     lessons: [
       {
         num: "3.1",
-        title: "Decryption Mechanisms: Gateway vs Re-encryption",
-        time: "50 min",
-        desc: 'Two distinct decryption paths exist in fhEVM: Gateway decryption (async, for contract-triggered reveals — e.g., revealing the auction winner) and Re-encryption (synchronous, user-facing — e.g., "show me my balance"). Students learn which to use and when.',
-        code: `// Gateway Decryption — contract triggers, async (for revealing state publicly)
-import "fhevm/gateway/GatewayCaller.sol";
+        title: "The Decryption Lifecycle",
+        time: "55 min",
+        desc: `Everything in FHE is encrypted by default. To see a value, you must explicitly "request" it. There are two paths:
 
-contract BlindAuction is GatewayCaller {
-  euint64 private highestBid;
-  
-  function revealWinner() external onlyOwner {
-    // Request decryption via the Gateway coprocessor
-    uint256[] memory cts = new uint256[](1);
-    cts[0] = Gateway.toUint256(highestBid);
-    uint256 reqId = Gateway.requestDecryption(cts, this.fulfillDecryption.selector, 0, block.timestamp + 100, false);
-  }
+### 1. User Decryption (Private)
+- **Goal**: A user wants to see their own balance.
+- **Mechanism**: Re-encryption.
+- **Workflow**: User signs an EIP-712 request -> Relayer verifies the signature + ACL -> Relayer returns the plaintext to the user's browser.
 
-  function fulfillDecryption(uint256 /*reqId*/, uint64 plainBid) public onlyGateway {
-    // Gateway resolved — now we have the plaintext
-    emit AuctionEnded(winner, plainBid);
-  }
+### 2. Public Revelation (Gateway)
+- **Goal**: Reveal the winner of an auction to everyone.
+- **Mechanism**: FHE.makePubliclyDecryptable().
+- **Workflow**: Contract authorizes a handle -> Anyone can now query the Relayer for the plaintext without a signature.`,
+        code: `// Authorization for Public Reveal
+function finalizeAuction(euint64 winningBid) external onlyOwner {
+    // 1. Mark this specific handle as "Publicly Decryptable"
+    // This doesn't reveal it instantly; it grants PERMISSION to reveal
+    FHE.makePubliclyDecryptable(winningBid);
+    
+    // 2. Emit the handle so the frontend knows what to query
+    emit WinnerRevealed(winningBid);
 }`,
-        notes:
-          "Instructor: Spend 10 minutes on the trust model. The Gateway is a decentralized key management network. It only decrypts when the contract explicitly authorizes it. This is not a backdoor — it is the designed public reveal mechanism.",
+        notes: `Instructor: This is the "Security vs. Utility" balance. Explain that FHE.makePubliclyDecryptable() is a one-way street for that specific handle. 
+
+**Expert Tip**: Students often confuse 'FHE.allow()' with 'FHE.makePubliclyDecryptable()'. Clarify: 'allow' is for specific addresses (Identity-based); 'makePubliclyDecryptable' is for the world (Access-based).`,
       },
       {
         num: "3.2",
-        title:
-          "ACL Permission Tiers: allow, allowTransient, makePubliclyDecryptable",
-        time: "40 min",
-        desc: "The ACL has three distinct tiers: FHE.allow() is permanent (stored in the ACL contract). FHE.allowTransient() is gas-optimized using EIP-1153 transient storage — valid only within the current transaction. FHE.makePubliclyDecryptable() allows any entity to decrypt off-chain via the Relayer.",
-        code: `mapping(address => euint64) private _balances;
+        title: "ACL Permission Tiers",
+        time: "60 min",
+        desc: `Access Control Lists (ACL) are the gatekeepers of the Coprocessor. If the ACL says "No," the crypto math fails.
 
-function mint(address to, uint64 amount) external onlyOwner {
-  _balances[to] = FHE.asEuint64(amount);
+### The Three Tiers of Permission:
+1. **Permanent (FHE.allow)**: Stored on-chain. Best for "persistent" data like user balances.
+2. **Transient (FHE.allowTransient)**: Uses EIP-1153. Valid ONLY for the current transaction. **10x cheaper gas.**
+3. **Internal (FHE.allowThis)**: Shorthand for granting the contract itself permission to compute on a handle.`,
+        code: `// Expert Gas Optimization
+function fastProcess(euint64 data) external {
+    // ✗ Expensive: FHE.allow(data, address(this))
+    
+    // ✓ Professional: Valid only for this tx, saves massive gas
+    FHE.allowTransient(data, address(this));
+    
+    _secretResult = FHE.add(data, _bonus);
+    FHE.allowThis(_secretResult); // Re-grant for next tx
+}`,
+        notes: `Instructor: Spend 15 minutes on the "Permission Double-Spend" problem. If I give you a handle, and you mutate it (FHE.add), you get a NEW handle. Your old permission DOES NOT work on the new handle. 
 
-  // PERMANENT ACL: persists across transactions
-  FHE.allow(_balances[to], to);     // recipient can view balance
-  FHE.allowThis(_balances[to]);     // contract can compute on it
-}
-
-function transfer(address to, externalEuint64 encAmount, bytes calldata proof) external {
-  euint64 amount = FHE.fromExternal(encAmount, proof);
-
-  // TRANSIENT: valid only within this tx (gas-optimized)
-  FHE.allowTransient(amount, address(this));
-
-  // ... compute updated balances ...
-
-  // After updating: always re-grant PERMANENT ACL
-  FHE.allow(_balances[msg.sender], msg.sender);
-  FHE.allow(_balances[to], to);
-  FHE.allowThis(_balances[msg.sender]);
-  FHE.allowThis(_balances[to]);
-}
-
-// Runtime ACL verification:
-bool senderOk = FHE.isSenderAllowed(_balances[msg.sender]);
-bool aliceOk  = FHE.isAllowed(_balances[alice], alice);`,
-        notes:
-          "Instructor: The most common bug is forgetting FHE.allowThis() after any FHE mutation. Every FHE.add/sub/select call produces a NEW handle — the old permissions do NOT transfer. This is the #1 source of mysterious test failures. Transient ACL (EIP-1153) is new and a significant gas win for same-tx cross-contract patterns.",
+**Student Challenge**: Why does FHE.allowTransient save gas? (Answer: It doesn't write to permanent storage state; it leaves the permission in the EVM's transient memory).`,
       },
       {
         num: "3.3",
-        title: "@zama-fhe/relayer-sdk: Encrypting Inputs & User Decryption",
-        time: "55 min",
-        desc: "Students integrate the official @zama-fhe/relayer-sdk into a Node.js/browser script. They learn to initialize an FhevmInstance using SepoliaConfig (one-liner), create an encrypted input buffer, and decrypt user-private state via instance.userDecrypt().",
-        code: `import { createInstance, SepoliaConfig } from "@zama-fhe/relayer-sdk";
-import { ethers } from "ethers";
+        title: "@zama-fhe/relayer-sdk Mastery",
+        time: "70 min",
+        desc: `The Relayer SDK is the bridge between the User's Wallet and the FHE Coprocessor.
 
-async function encryptAndSubmit(contractAddress, abi, amount) {
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  const signer   = await provider.getSigner();
-  const userAddr = await signer.getAddress();
+### Integration Steps:
+1. **Initialize**: 'const instance = await createInstance(SepoliaConfig);'
+2. **Encrypt**: Convert browser inputs into 'externalEuint64' payloads.
+3. **Sign & Read**: Use EIP-712 to securely request a private read.
 
-  // SepoliaConfig has all addresses baked in — no manual config
-  const instance = await createInstance(SepoliaConfig);
+### The Decryption Buffer:
+When a user requests a read, they provide a Public Key. The Relayer re-encrypts the result specifically for that key. Only the user with the corresponding Private Key can see the number.`,
+        code: `// Frontend: Secure Private Read
+async function getMyBalance(contractAddr, balanceHandle) {
+    const instance = await createInstance(SepoliaConfig);
+    const { publicKey, privateKey } = instance.generateKeypair();
 
-  // Create encrypted input buffer and add a 64-bit value
-  const buffer = instance.createEncryptedInput(contractAddress, userAddr);
-  buffer.add64(BigInt(amount));
-  // .encrypt() uploads ciphertext via Relayer, returns handles
-  const { handles, inputProof } = await buffer.encrypt();
+    // 1. Create EIP-712 Signature (Wallet popup)
+    const eip712 = instance.createEIP712(publicKey, [contractAddr]);
+    const signature = await signer.signTypedData(...eip712);
 
-  // handles[0] maps to externalEuint64 on the Solidity side
-  const contract = new ethers.Contract(contractAddress, abi, signer);
-  await contract.bid(handles[0], inputProof);
-}
+    // 2. Fetch from Relayer
+    const result = await instance.userDecrypt(
+        [{ handle: balanceHandle, contractAddress: contractAddr }],
+        privateKey, publicKey, signature
+    );
 
-// USER DECRYPTION — private read of own encrypted state
-async function readMyBalance(contractAddress, balanceHandle) {
-  const instance  = await createInstance(SepoliaConfig);
-  const keypair   = instance.generateKeypair();
-  const provider  = new ethers.BrowserProvider(window.ethereum);
-  const signer    = await provider.getSigner();
-
-  const startTs  = Math.floor(Date.now() / 1000).toString();
-  const duration = '10';
-  const eip712   = instance.createEIP712(
-    keypair.publicKey, [contractAddress], startTs, duration
-  );
-  const signature = await signer.signTypedData(
-    eip712.domain,
-    { UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification },
-    eip712.message
-  );
-  const result = await instance.userDecrypt(
-    [{ handle: balanceHandle, contractAddress }],
-    keypair.privateKey, keypair.publicKey,
-    signature.replace('0x',''),
-    [contractAddress], signer.address, startTs, duration
-  );
-  return result[balanceHandle]; // plaintext — only visible to this user
+    console.log("My Hidden Balance is:", result[balanceHandle]);
 }`,
-        notes:
-          'Instructor: Live code this in VS Code with the class. Have a Sepolia testnet contract already deployed. Highlight the DX improvement: SepoliaConfig replaces 8 manual config lines with one import. The "wow" moment is when students see their encrypted bid on Etherscan as an opaque hex blob.',
+        notes: `Instructor: This is the first time students see "The Whole Loop." The 'wow' factor is high. 
+
+**Expert Pitfall**: Remind students that 'SepoliaConfig' has the Gateway addresses baked in. If they move to a custom chain, they must provide those addresses manually.`,
       },
       {
         num: "3.4",
-        title: "Blind Auction Architecture & Implementation",
+        title: "The WETH-FHE Pattern",
+        time: "50 min",
+        desc: `Native ETH is public. To make it private, we use a "Shielded Wrapper" (similar to WETH).
+
+### The 2-Step Shielding Process:
+1. **Wrap**: User sends public ETH to the contract; contract mints an equal amount of **encrypted** balance handles (euint64) back to the user.
+2. **Unwrap**: User requests an unwrap; contract verifies the encrypted balance, burns it, and sends public ETH back.`,
+        code: `// Shielding Native ETH
+function wrap() external payable {
+    require(msg.value > 0);
+    // Mint encrypted balance to user
+    euint64 amount = FHE.asEuint64(msg.value);
+    _encBalances[msg.sender] = FHE.add(_encBalances[msg.sender], amount);
+    
+    // Grant permissions
+    FHE.allow(_encBalances[msg.sender], msg.sender);
+    FHE.allowThis(_encBalances[msg.sender]);
+}
+
+function unwrap(externalEuint64 encAmount, bytes calldata proof) external {
+    euint64 amount = FHE.fromExternal(encAmount, proof);
+    // ... verification & transfer logic ...
+}`,
+        notes: `Instructor: This is a foundational DeFi building block. Explain that 'Native ETH' cannot stay encrypted on-chain because its balances are part of the core EVM state. Only 'Handles' inside a contract can be private.`,
+      },
+      {
+        num: "3.5",
+        title: "Capstone: The Blind Auction Frontend",
         time: "75 min",
-        desc: "Students build a complete blind auction from scratch: encrypted bid submission, tracking the highest bid without revealing it, and Gateway-triggered reveal at auction close. We also implement the re-encryption endpoint so bidders can verify their own bid was recorded.",
-        notes:
-          "Instructor: This is the longest lesson. Consider splitting into two sessions. The first session covers the Solidity contract; the second covers the @zama-fhe/relayer-sdk Node.js bidding script. Students often confuse FHE.makePubliclyDecryptable() (on-chain auth) with the actual decryption (off-chain Relayer call). Clarify these are two separate steps.",
+        desc: `We wire the Week 3 UI to the Week 2 Contract. 
+
+### Features:
+- **Hidden Bidding**: No one knows the current high bid.
+- **Private Winner Reveal**: The winner is revealed only when the admin calls 'finalize'.
+- **Bidders' Privacy**: Losing bidders never reveal their bid amounts, even after the auction ends.`,
+        code: `// Full Lifecycle check
+async function placeBid(amount) {
+    const buffer = instance.createEncryptedInput(AUCTION_ADDR, userAddr);
+    buffer.add64(amount);
+    
+    const { handles, inputProof } = await buffer.encrypt();
+    
+    // Calls the 'bid(externalEuint64, bytes)' function
+    await auctionContract.bid(handles[0], inputProof);
+}`,
+        notes: `Instructor: Focus on UX. Because the transaction doesn't revert (No Revert rule), the frontend needs to "Listen" for events or simulate the state to show the user a "Pending" status. This is how you build professional FHE dApps.`,
       },
     ],
     homework: {
@@ -588,73 +647,123 @@ async function readMyBalance(contractAddress, balanceHandle) {
     lessons: [
       {
         num: "4.1",
-        title: "EIP-1153 & Transient ACL Optimization",
-        time: "45 min",
-        desc: "Deep dive into gas optimization. Graduates learn to use FHE.allowTransient() which leverages EIP-1153 transient storage. This allows granting permissions that automatically expire at the end of the transaction, saving significant gas compared to permanent ACL storage.",
-        code: `// Multi-contract call pattern
-function secureProcess(euint64 data) external {
-    // Grant transient access to the library/helper contract
-    // Costs ~10x less gas than FHE.allow()
-    FHE.allowTransient(data, address(logicLibrary));
+        title: "EIP-1153 & Transient Gas Optimization",
+        time: "60 min",
+        desc: `FHE operations are expensive. A single 'FHE.add' can cost 100x more than a standard '+' in Solidity. To build production apps, you must master **Selective Encryption** and **Transient Storage**.
+
+### EIP-1153: The FHE Game-Changer
+Starting with Zama's latest releases, we leverage 'FHE.allowTransient()'. This uses EIP-1153 (Transient Storage) to grant permissions that vanish at the end of the transaction.
+
+### Optimization Rules:
+1. **Plaintext Metadata**: Don't encrypt the sender's address or the timestamp. It's usually not sensitive and wastes massive gas.
+2. **Casting**: 'euint8' is cheaper than 'euint64'. Use the smallest type possible.
+3. **Transient ACLs**: Always use 'FHE.allowTransient' for intermediate contract calls.`,
+        code: `// Multi-Contract Gas Optimization
+function executePayroll(address registry) external {
+    euint64 salary = SalaryRegistry(registry).getSalary(msg.sender);
     
-    logicLibrary.compute(data);
-    // Permission is automatically cleared by the EVM after tx
+    // ✓ FAST: Grants permission only for this tx loop
+    FHE.allowTransient(salary, address(this));
+    
+    _totalPaid = FHE.add(_totalPaid, salary);
+    FHE.allowThis(_totalPaid);
 }`,
-        notes:
-          "Instructor: This is the 'Expert' differentiator. Show the gas difference between a Week 1 permanent FHE.allow and a Week 4 transient FHE.allowTransient. It teaches students to think about the ACL as a resource to be managed, not just a checkbox.",
+        notes: `Instructor: This is the "Separating Pros from Amateurs" lesson. Show a gas report comparing 'FHE.allow' vs 'FHE.allowTransient'. The 10x savings is what makes complex DeFi possible on Zama. 
+
+**Expert Tip**: Mention that 'FHE.allowTransient' requires Solidity 0.8.24+ to support the 'TSTORE' opcode.`,
       },
       {
         num: "4.2",
-        title: "Multi-Contract & Coprocessor Architecture",
-        time: "40 min",
-        desc: "Real-world dApps are not monolithic. Students design a payroll system as three contracts: a PayrollVault(holds encrypted funds), a SalaryRegistry (stores encrypted salary mappings), and an EmployeeAuth (manages decryption permissions). They learn how handles are shared across contracts using FHE.allow() and FHE.allowTransient().",
-        code: `// Grant another contract permanent access to a ciphertext handle
-// FHE.allow() accepts both user addresses AND contract addresses
-FHE.allow(_salaries[employee], address(salaryRegistry));
+        title: "Multi-Contract Security & ACL Delegation",
+        time: "60 min",
+        desc: `Production dApps are decentralized across many contracts. Managing permissions across this mesh is the hardest part of FHE security.
 
-// For same-transaction cross-contract calls: use allowTransient (cheaper)
-FHE.allowTransient(_salaries[employee], address(payrollVault));
+### Transitive Permissions:
+If Contract A has a handle, and sends it to Contract B, Contract B **cannot** use it unless:
+1. Contract A calls 'FHE.allow(handle, address(B))'.
+2. Or the User has pre-authorized Contract B.
 
-// Verify a contract has permission before operating:
-bool hasAccess = FHE.isAllowed(_salaries[employee], address(salaryRegistry));
+### Security Checklist:
+- [ ] Use 'FHE.isSenderAllowed(handle)' to prevent unauthorized contracts from "stealing" compute.
+- [ ] Implement 'OnlyCoprocessor' modifiers for functions that receive Gateway results.`,
+        code: `// Secure Multi-Contract Pattern
+function processData(euint64 data) external {
+    // 1. Verify the sender actually has access to this pointer
+    // This prevents "Handle Probing" attacks
+    require(FHE.isSenderAllowed(data), "Unauthorized Handle");
 
-// In SalaryRegistry: protect getter with isInitialized + isSenderAllowed
-function getSalary(address employee) external view returns (euint64) {
-  require(FHE.isInitialized(_salaries[employee]), "Salary not set");
-  require(FHE.isSenderAllowed(_salaries[employee]), "Access denied");
-  return _salaries[employee];
+    // 2. Delegate to logic contract
+    FHE.allowTransient(data, address(logicContract));
+    logicContract.run(data);
 }`,
-        notes:
-          "Instructor: Draw the multi-contract architecture on a whiteboard first. Key point: FHE.allowTransient is transient (EIP-1153) — it vanishes after the transaction. FHE.allow is permanent, stored in the ACL contract. Use allowTransient for internal calls, allow for persistent cross-contract state.",
+        notes: `Instructor: Use a "Key and Lock" diagram. Just because I give you an envelope (handle) doesn't mean you have the key (ACL) to open it. Multi-contract security is about managing those cryptographic "delegations" safely.`,
       },
       {
         num: "4.3",
-        title: "End-to-End Deployment on Sepolia",
+        title: "The Production Lifecycle: CI/CD & Faucets",
+        time: "65 min",
+        desc: `Deploying to Sepolia is different from local mock testing.
+
+### Key Deployment Steps:
+1. **Mnemonic Management**: Use 'npx hardhat vars' (NEVER .env).
+2. **Sepolia Config**: 'chainId: 11155111'.
+3. **Gateway Config**: 'chainId: 10901'.
+4. **Relayer URL**: Zama's official testnet relayer (available in 'SepoliaConfig').`,
+        code: `# Production Hardhat Deploy
+npx hardhat vars set MNEMONIC "your twelve word..."
+npx hardhat vars set INFURA_KEY "xyz..."
+
+# Deploy to the Host Chain (Sepolia)
+npx hardhat deploy --network sepolia`,
+        notes: `Instructor: Finish the course by showing a live transaction on the Sepolia Explorer. Point out that the data is an 'Encrypted Input'.`,
+      },
+      {
+        num: "4.4",
+        title: "Institutional Standards: ERC7984 & ERC7821",
         time: "60 min",
-        desc: "Students deploy the full payroll system to Sepolia (the fhEVM host chain, chainId 11155111). Covers Hardhat configuration variables for secure secret management (no .env files), deploy scripts, Etherscan verification, and initializing the Relayer SDK for production.",
-        code: `// hardhat.config.js — Sepolia fhEVM host chain
-networks: {
-  sepolia: {
-    url: \`https://sepolia.infura.io/v3/\${vars.get("INFURA_API_KEY")}\`,
-    accounts: { mnemonic: vars.get("MNEMONIC") }, // Hardhat vars, not .env!
-    chainId: 11155111,
-  },
-},
+        desc: `Professional FHE development requires following global standards to ensure wallet and explorer compatibility.
 
-// Set secrets with Hardhat Configuration Variables:
-// npx hardhat vars set MNEMONIC
-// npx hardhat vars set INFURA_API_KEY
+### ERC7984: The Confidential Token Standard
+This is the equivalent of ERC20 but for FHE. It standardizes how 'view' functions interact with the Relayer and how 'allowances' are handled in encrypted space.
 
-// Deploy and verify
-// npx hardhat deploy --network sepolia
-// npx hardhat verify --network sepolia <ADDR> <ARGS>
+### ERC7821: The Executor Standard
+Learn how to design contracts that allow third-party executors (Relayers) to submit FHE computations on behalf of users securely.`,
+        code: `// ERC7984 Compliance: Forced Transfer for RWAs
+function forceTransfer(address from, address to, euint64 amount) external onlyOwner {
+    // 1. Verify compliance via encrypted checks
+    // 2. Execute transfer using Admin ACL bypass
+    _balances[from] = FHE.sub(_balances[from], amount);
+    _balances[to] = FHE.add(_balances[to], amount);
+    
+    // Grant permissions back to the respective parties
+    FHE.allow(_balances[from], from);
+    FHE.allow(_balances[to], to);
+}`,
+        notes: `Instructor: This is the "Trillion Dollar" use case. Real World Assets (RWAs) require the issuer to have "Admin Overrides" for legal compliance (seizures/clawbacks). ERC7984 provides the blueprint for doing this without leaking the balance to the public.`,
+      },
+      {
+        num: "4.5",
+        title: "The Audit Hall of Shame: Anti-Patterns",
+        time: "55 min",
+        desc: `Security in FHE is counter-intuitive. Typical Solidity hacks don't apply, but "Data Leaks" are catastrophic.
 
-// Client-side: one-liner init with SepoliaConfig (includes Relayer URL)
-import { createInstance, SepoliaConfig } from "@zama-fhe/relayer-sdk";
-const instance = await createInstance(SepoliaConfig);
-// SepoliaConfig: chainId=11155111, gatewayChainId=10901, relayer=testnet.zama.org`,
-        notes:
-          "Instructor: Pre-fund student wallets with Sepolia ETH before class. The faucet can be slow — use the official Infura Sepolia faucet. Important: use Hardhat vars (not .env) for secrets in Hardhat projects — they are stored securely outside the project and never committed.",
+### Top 3 FHE Anti-Patterns:
+1. **The View-Function Leak**: Returning an encrypted handle in a public 'view' function that doesn't check for 'isSenderAllowed'.
+2. **Handle Probing**: Allowing anyone to pass a handle to a function, which then updates state—allowing a malicious actor to "test" if a handle represents a certain value.
+3. **Weak Re-encryption**: Using static keys for re-encryption instead of EIP-712 ephemeral keys.`,
+        code: `// ✗ DANGEROUS ANTI-PATTERN
+function getBalancePublic(address user) external view returns (euint64) {
+    // VULNERABILITY: This returns a pointer to anyone.
+    // If the Relayer isn't perfectly configured, this is a leak.
+    return _balances[user];
+}
+
+// ✓ SECURE PATTERN
+function getBalanceSecure(address user) external view returns (euint64) {
+    require(FHE.isSenderAllowed(_balances[user]), "Identity Mismatch");
+    return _balances[user];
+}`,
+        notes: `Instructor: This is the "Zama Professor's" favorite lesson. Spend the final hour doing a "Bug Bounty" on the whiteboard where you write faulty FHE code and have students find the privacy leak.`,
       },
     ],
     homework: {
@@ -806,7 +915,9 @@ export default function CurriculumPage() {
               </div>
             </div>
           </div>
-          <p className="week-overview-text">{week.overview}</p>
+          <div className="week-overview-text">
+            <ReactMarkdown>{week.overview}</ReactMarkdown>
+          </div>
         </div>
 
         {/* Objectives */}
@@ -851,15 +962,16 @@ export default function CurriculumPage() {
                 <div
                   className={`accordion-body${openLesson === i ? " open" : ""}`}
                 >
-                  <p
+                  <div
+                    className="lesson-desc"
                     style={{
                       color: "var(--text-secondary)",
                       lineHeight: 1.7,
                       marginBottom: lesson.code || lesson.notes ? 20 : 0,
                     }}
                   >
-                    {lesson.desc}
-                  </p>
+                    <ReactMarkdown>{lesson.desc}</ReactMarkdown>
+                  </div>
                   {lesson.code && (
                     <div className="code-block" style={{ marginBottom: 20 }}>
                       <pre
@@ -875,7 +987,9 @@ export default function CurriculumPage() {
                   {lesson.notes && (
                     <div className="instructor-note">
                       <span className="note-label">🎓 Instructor Note</span>
-                      <p>{lesson.notes}</p>
+                      <div className="note-text">
+                        <ReactMarkdown>{lesson.notes}</ReactMarkdown>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -894,7 +1008,9 @@ export default function CurriculumPage() {
                 Homework Assignment
               </span>
               <h3 className="hw-title">{week.homework.title}</h3>
-              <p className="hw-desc">{week.homework.desc}</p>
+              <div className="hw-description">
+                <ReactMarkdown>{week.homework.desc}</ReactMarkdown>
+              </div>
             </div>
             <div className="hw-meta">
               <div>

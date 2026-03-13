@@ -358,6 +358,69 @@ const ASSIGNMENTS = [
     ],
     tip: "Design the ACL flows on paper first. Draw every FHE.allow() and FHE.allowThis() call as an arrow from the granting entity to the receiving entity. Every encrypted value needs at minimum two arrows: FHE.allowThis() for the contract and FHE.allow(handle, user) for the authorized user. FHE.allowTransient() is useful for temporary intra-transaction handles to save gas.",
   },
+  {
+    week: "Master",
+    title: "Institutional-Grade FHE & Auditing",
+    subtitle:
+      "Implement ERC7984 standards with RWA compliance and conduct a professional security audit",
+    time: "10–14 hours",
+    difficulty: "Expert",
+    color: "purple",
+    concepts: [
+      "ERC7984",
+      "RWA Compliance",
+      "Handle Leaks",
+      "Audit Anti-Patterns",
+    ],
+    scenario: `A tier-1 investment bank is tokenizing real estate assets. They require full privacy for holders, but the bank must have the ability to "Force Transfer" assets in case of a court order. Additionally, you must audit a provided "Dark Pool" contract that contains a subtle cryptographic data leak.`,
+    deliverables: [
+      "StandardToken.sol — ERC7984 compliant token with compliance overrides",
+      "AuditReport.pdf — finding and fixing a 'View Function' state leak",
+      "Executor.sol — meta-transaction executor following the ERC7821 pattern",
+    ],
+    spec: [
+      {
+        title: "ERC7984 Token Requirements",
+        items: [
+          "Follow the ERC7984 interface for re-encryption and allowance queries",
+          "Implement forceTransfer() only callable by the complianceAdmin role",
+          "Implement freezeAccount() which prevents certain handles from being spent",
+          "All compliance logic must be gated behind FHE.select to prevent leak of 'who' is being frozen",
+        ],
+      },
+      {
+        title: "The Audit Challenge (Finding the leak)",
+        items: [
+          "Analyze the provided 'BrokenPool.sol' contract",
+          "Identify where the contract leaks 'Reserve Ratios' through a public view function",
+          "Rewrite the function to use re-encryption + FHE.isSenderAllowed properly",
+        ],
+      },
+    ],
+    grading: [
+      {
+        points: 25,
+        label: "ERC7984 Compliance and Force Transfer logic",
+        level: "Functionality",
+      },
+      {
+        points: 25,
+        label: "Secure implementation of Compliance Overrides (no data leaks)",
+        level: "Security",
+      },
+      {
+        points: 30,
+        label: "Identification and fix of the cryptographic state leak",
+        level: "Audit",
+      },
+      {
+        points: 20,
+        label: "Standardized EIP-712 re-encryption flow implemented",
+        level: "Excellent",
+      },
+    ],
+    tip: "When building compliance overrides, use a 'Master Handle' that the admin can compute on. To avoid leaking *who* is being checked, always use FHE.select to apply the 'Frozen' flag to the transaction amount before the update. Silence is security.",
+  },
 ];
 
 export default function HomeworkPage() {
