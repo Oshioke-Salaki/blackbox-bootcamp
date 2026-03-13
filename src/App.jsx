@@ -6,6 +6,7 @@ import HomePage from "./pages/HomePage";
 import CurriculumPage from "./pages/CurriculumPage";
 import HomeworkPage from "./pages/HomeworkPage";
 import ResourcesPage from "./pages/ResourcesPage";
+import SandboxPage from "./pages/SandboxPage";
 import "./App.css";
 
 function ScrollToTop() {
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/curriculum" element={<CurriculumPage />} />
         <Route path="/homework" element={<HomeworkPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
+        <Route path="/sandbox" element={<SandboxPage />} />
       </Routes>
       <Footer />
     </>

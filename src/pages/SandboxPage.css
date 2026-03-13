@@ -1,0 +1,514 @@
+/* ── Sandbox Page ─────────────────────────────────── */
+
+.sandbox-page {
+  padding: 120px 0 80px;
+  min-height: 100vh;
+}
+
+/* ── Header ──────────────────────────────────────── */
+
+.sandbox-header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+
+.sandbox-header .tag {
+  margin-bottom: 16px;
+  display: inline-block;
+}
+
+.sandbox-title {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.03em;
+  margin: 0 0 12px;
+}
+
+.sandbox-subtitle {
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* ── Two-Column Layout ───────────────────────────── */
+
+.sandbox-layout {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+/* ── Sidebar ─────────────────────────────────────── */
+
+.sandbox-sidebar {
+  width: 280px;
+  min-width: 280px;
+  position: sticky;
+  top: 80px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.sidebar-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.sidebar-item--active {
+  border-left-color: var(--accent);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.sidebar-item--completed .sidebar-title {
+  color: var(--text-secondary);
+}
+
+.sidebar-num {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  min-width: 22px;
+}
+
+.sidebar-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sidebar-check {
+  color: var(--success);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+/* ── Main Exercise Area ──────────────────────────── */
+
+.sandbox-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.exercise-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 32px;
+  transition: border-color 0.4s;
+}
+
+.exercise-card--success {
+  border-color: var(--accent);
+  animation: goldPulse 2s ease-in-out;
+}
+
+@keyframes goldPulse {
+  0% { box-shadow: 0 0 0 0 rgba(200, 165, 90, 0.3); }
+  50% { box-shadow: 0 0 20px 0 rgba(200, 165, 90, 0.15); }
+  100% { box-shadow: 0 0 0 0 rgba(200, 165, 90, 0); }
+}
+
+/* ── Exercise Header ─────────────────────────────── */
+
+.exercise-header {
+  margin-bottom: 20px;
+}
+
+.exercise-num {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.exercise-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 6px 0 12px;
+  letter-spacing: -0.02em;
+}
+
+.exercise-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.exercise-difficulty {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Description ─────────────────────────────────── */
+
+.exercise-description {
+  border-left: 2px solid var(--accent);
+  padding-left: 16px;
+  margin-bottom: 24px;
+}
+
+.exercise-description p {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ── Code Editor ─────────────────────────────────── */
+
+.editor-wrapper {
+  display: flex;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  margin-bottom: 20px;
+  transition: border-color 0.3s;
+  min-height: 300px;
+}
+
+.editor-wrapper:focus-within {
+  border-color: var(--accent);
+}
+
+.editor-line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0 24px 16px;
+  min-width: 44px;
+  text-align: right;
+  user-select: none;
+  pointer-events: none;
+}
+
+.editor-line-numbers span {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.65;
+  color: var(--text-tertiary);
+  padding-right: 12px;
+}
+
+/* editor area: stacks highlight + textarea */
+.editor-area {
+  flex: 1;
+  position: relative;
+  min-height: 300px;
+}
+
+.editor-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 24px 24px 24px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.65;
+  tab-size: 4;
+  white-space: pre;
+  overflow: auto;
+  pointer-events: none;
+  color: var(--text-secondary);
+  word-wrap: normal;
+}
+
+.editor-textarea {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: transparent;
+  caret-color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.65;
+  padding: 24px 24px 24px 8px;
+  resize: vertical;
+  min-height: 300px;
+  tab-size: 4;
+  white-space: pre;
+  overflow: auto;
+}
+
+.editor-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.editor-textarea::selection {
+  background: rgba(200, 165, 90, 0.25);
+  color: transparent;
+}
+
+/* ── Actions ─────────────────────────────────────── */
+
+.exercise-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+/* ── Hint Panel ──────────────────────────────────── */
+
+.hint-panel {
+  background: var(--accent-dim);
+  border-left: 2px solid var(--accent);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.hint-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.hint-panel p {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Feedback Panel ──────────────────────────────── */
+
+.feedback-panel {
+  border: 1px solid var(--border);
+  padding: 20px 24px;
+}
+
+.feedback-panel--success {
+  border-color: var(--accent);
+}
+
+.feedback-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.feedback-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.feedback-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.feedback-icon {
+  font-size: 0.95rem;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.feedback-item--pass .feedback-icon {
+  color: var(--success);
+}
+
+.feedback-item--fail .feedback-icon {
+  color: var(--error);
+}
+
+/* ── Success Message ─────────────────────────────── */
+
+.success-message {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.success-message p {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  color: var(--accent);
+  margin: 0 0 12px;
+}
+
+.success-message .btn-primary {
+  margin-top: 4px;
+}
+
+.completion-note {
+  color: var(--text-secondary) !important;
+  font-style: italic;
+}
+
+/* ── Progress Bar ────────────────────────────────── */
+
+.sandbox-progress {
+  margin-top: 48px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.progress-label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+/* ── Mobile ──────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .sandbox-page {
+    padding: 100px 0 60px;
+  }
+
+  .sandbox-title {
+    font-size: 2rem;
+  }
+
+  .sandbox-layout {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sandbox-sidebar {
+    width: 100%;
+    min-width: 0;
+    position: static;
+    overflow-x: auto;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    gap: 0;
+  }
+
+  .sidebar-item {
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 14px;
+    min-width: 44px;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    gap: 4px;
+  }
+
+  .sidebar-item--active {
+    border-left-color: transparent;
+    border-bottom-color: var(--accent);
+  }
+
+  .sidebar-title {
+    display: none;
+  }
+
+  .sidebar-dot {
+    display: none;
+  }
+
+  .exercise-card {
+    padding: 20px 16px;
+  }
+
+  .editor-wrapper {
+    min-height: 240px;
+  }
+
+  .editor-textarea,
+  .editor-highlight {
+    min-height: 240px;
+    font-size: 0.78rem;
+  }
+
+  .editor-line-numbers span {
+    font-size: 0.72rem;
+  }
+
+  .exercise-actions {
+    flex-direction: column;
+  }
+
+  .exercise-actions .btn-primary,
+  .exercise-actions .btn-outline {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* ── Syntax Highlighting Colors ─────────────────── */
+.editor-highlight .sh-kw  { color: #C792EA; }
+.editor-highlight .sh-ty  { color: #FFCB6B; }
+.editor-highlight .sh-fn  { color: #82AAFF; }
+.editor-highlight .sh-str { color: #C3E88D; }
+.editor-highlight .sh-cm  { color: #546E7A; font-style: italic; }
+.editor-highlight .sh-num { color: #F78C6C; }

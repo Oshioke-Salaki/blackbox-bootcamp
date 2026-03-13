@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { to: "/curriculum", label: "Curriculum" },
   { to: "/homework", label: "Homework" },
   { to: "/resources", label: "Resources" },
+  { to: "/sandbox", label: "Sandbox" },
 ];
 
 const WEEK_STRUCTURE = [
@@ -28,7 +29,7 @@ export default function Navbar() {
       <div className="navbar-inner">
         <Link to="/" className="navbar-brand">
           <span className="brand-mark">BX</span>
-          <span className="brand-text">Blackbox</span>
+          <span className="brand-text"> Zama Blackbox</span>
         </Link>
 
         <div className={`navbar-links${open ? " open" : ""}`}>
