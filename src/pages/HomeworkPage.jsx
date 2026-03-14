@@ -681,8 +681,8 @@ export default function HomeworkPage() {
           <Link to="/curriculum" className="btn-outline">
             Back to Curriculum
           </Link>
-          <Link to="/instructor" className="btn-primary">
-            View Instructor Hub
+          <Link to="/sandbox" className="btn-primary">
+            Practice in Sandbox
           </Link>
         </div>
       </div>
