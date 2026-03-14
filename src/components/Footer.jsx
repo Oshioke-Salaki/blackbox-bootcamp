@@ -32,15 +32,34 @@ export default function Footer() {
             <h4>Resources</h4>
             <Link to="/homework">Homework Specs</Link>
             <Link to="/resources">Instructor Guide</Link>
-            <Link to="/resources">Video Script</Link>
-            <a href="https://docs.zama.ai/fhevm" target="_blank" rel="noreferrer">Zama Docs</a>
+            <a
+              href="https://docs.zama.ai/fhevm"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Zama Docs
+            </a>
           </div>
 
           <div className="footer-col">
             <h4>Community</h4>
-            <a href="https://github.com/zama-ai/fhevm-hardhat-template" target="_blank" rel="noreferrer">GitHub Template</a>
-            <a href="https://discord.gg/zama" target="_blank" rel="noreferrer">Discord</a>
-            <a href="https://twitter.com/zaboris" target="_blank" rel="noreferrer">Twitter</a>
+            <a
+              href="https://github.com/zama-ai/fhevm-hardhat-template"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub Template
+            </a>
+            <a href="https://discord.gg/zama" target="_blank" rel="noreferrer">
+              Discord
+            </a>
+            <a
+              href="https://twitter.com/zaboris"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Twitter
+            </a>
           </div>
         </div>
 
