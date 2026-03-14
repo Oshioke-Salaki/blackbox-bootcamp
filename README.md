@@ -49,55 +49,60 @@ No slides. No passive video lectures. Every concept is taught through interactiv
 ## Features
 
 ### Interactive Curriculum
+
 13 lessons across 4 weeks with expandable content, inline code examples with syntax highlighting, quizzes with instant feedback, and per-lesson progress tracking.
 
 ### FHE Coding Sandbox
+
 10 progressive coding exercises in a full IDE-style interface — file explorer sidebar, syntax-highlighted editor, terminal-style output panel, and pattern-based code validation. Exercises range from declaring encrypted types to building blind auction logic.
 
 ### Homework & Starter Code
+
 Weekly assignments with Solidity starter templates, detailed grading rubrics, difficulty progression, and pro tips for each task.
 
 ### Resource Hub
-Three-tab resource center with learning materials (FHE type system reference, cheat sheets, glossary), an instructor guide (common mistakes, cohort tips), and a video production guide.
+
+Three-tab resource center with learning materials (FHE type system reference, cheat sheets, glossary), an instructor guide (common mistakes, cohort tips)
 
 ### Progress System
+
 localStorage-based completion tracking across curriculum lessons and sandbox exercises. Visual progress indicators in the navbar, sidebar, and dedicated progress bars. Animated celebrations on completion.
 
 ## Curriculum
 
-| Week | Topic | What You Learn |
-|------|-------|----------------|
-| **01** | FHE Foundations | Encrypted types (`euint64`, `ebool`), `FHE.add`/`sub`, input validation with `FHE.fromExternal`, ACL permissions with `FHE.allow`/`allowThis` |
-| **02** | Building Blocks | Boolean masking with `FHE.and`/`FHE.or`, comparison operators, `FHE.select` for branchless logic, encrypted DeFi patterns (dark pools, AMMs) |
-| **03** | Real Applications | Blind auctions, sealed voting, public decryption with `FHE.makePubliclyDecryptable`, Relayer SDK client integration |
-| **04** | Production Patterns | Gas optimization (selective encryption), cross-contract ACL handoff, testing strategies, deployment best practices |
+| Week   | Topic               | What You Learn                                                                                                                                |
+| ------ | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **01** | FHE Foundations     | Encrypted types (`euint64`, `ebool`), `FHE.add`/`sub`, input validation with `FHE.fromExternal`, ACL permissions with `FHE.allow`/`allowThis` |
+| **02** | Building Blocks     | Boolean masking with `FHE.and`/`FHE.or`, comparison operators, `FHE.select` for branchless logic, encrypted DeFi patterns (dark pools, AMMs)  |
+| **03** | Real Applications   | Blind auctions, sealed voting, public decryption with `FHE.makePubliclyDecryptable`, Relayer SDK client integration                           |
+| **04** | Production Patterns | Gas optimization (selective encryption), cross-contract ACL handoff, testing strategies, deployment best practices                            |
 
 ## Sandbox Exercises
 
-| # | Exercise | Difficulty | Concept |
-|---|----------|------------|---------|
-| 01 | Declare Encrypted Storage | Beginner | `euint64`, `ebool` type declarations |
-| 02 | Accept Encrypted Input | Beginner | `externalEuint64`, `FHE.fromExternal` |
-| 03 | The No-Revert Transfer | Intermediate | `FHE.le`, `FHE.select` for silent no-ops |
-| 04 | Boolean Masking | Intermediate | Chaining `FHE.and` for multi-condition logic |
-| 05 | Constant-Product Swap | Intermediate | `FHE.mul`, `FHE.div` for encrypted AMM math |
-| 06 | Sealed Bid | Advanced | Blind auction with `FHE.gt` + `FHE.select` |
-| 07 | Public Decryption | Advanced | `FHE.makePubliclyDecryptable` for reveals |
-| 08 | Cross-Contract ACL | Advanced | `FHE.allow` for inter-contract handle passing |
-| 09 | Selective Encryption | Advanced | Gas optimization — encrypt only what needs privacy |
-| 10 | Relayer SDK Integration | Expert | Client-side `createInstance`, `createEncryptedInput`, `encrypt` |
+| #   | Exercise                  | Difficulty   | Concept                                                         |
+| --- | ------------------------- | ------------ | --------------------------------------------------------------- |
+| 01  | Declare Encrypted Storage | Beginner     | `euint64`, `ebool` type declarations                            |
+| 02  | Accept Encrypted Input    | Beginner     | `externalEuint64`, `FHE.fromExternal`                           |
+| 03  | The No-Revert Transfer    | Intermediate | `FHE.le`, `FHE.select` for silent no-ops                        |
+| 04  | Boolean Masking           | Intermediate | Chaining `FHE.and` for multi-condition logic                    |
+| 05  | Constant-Product Swap     | Intermediate | `FHE.mul`, `FHE.div` for encrypted AMM math                     |
+| 06  | Sealed Bid                | Advanced     | Blind auction with `FHE.gt` + `FHE.select`                      |
+| 07  | Public Decryption         | Advanced     | `FHE.makePubliclyDecryptable` for reveals                       |
+| 08  | Cross-Contract ACL        | Advanced     | `FHE.allow` for inter-contract handle passing                   |
+| 09  | Selective Encryption      | Advanced     | Gas optimization — encrypt only what needs privacy              |
+| 10  | Relayer SDK Integration   | Expert       | Client-side `createInstance`, `createEncryptedInput`, `encrypt` |
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | React 19 |
-| Build | Vite 5 |
-| Routing | React Router 7 |
-| Styling | Custom CSS design system (no UI libraries) |
-| State | React Context + localStorage |
-| Hosting | Vercel |
-| Backend | None — fully static SPA |
+| Layer     | Technology                                 |
+| --------- | ------------------------------------------ |
+| Framework | React 19                                   |
+| Build     | Vite 5                                     |
+| Routing   | React Router 7                             |
+| Styling   | Custom CSS design system (no UI libraries) |
+| State     | React Context + localStorage               |
+| Hosting   | Vercel                                     |
+| Backend   | None — fully static SPA                    |
 
 ## Design
 
